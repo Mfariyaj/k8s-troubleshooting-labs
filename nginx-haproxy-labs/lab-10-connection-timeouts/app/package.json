@@ -1,0 +1,9 @@
+{
+  "name": "lab10-slow-app",
+  "version": "1.0.0",
+  "description": "Slow backend app for timeout testing",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sync-wave-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example-org/apps.git
+    targetRevision: HEAD
+    path: apps/multi-tier
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sync-waves-ns
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,7 @@
+---
+# Global variables for all hosts
+http_port: 80
+app_env: production
+max_connections: 100
+app_name: myapp
+log_level: info

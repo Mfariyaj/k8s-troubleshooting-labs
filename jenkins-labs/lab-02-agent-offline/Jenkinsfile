@@ -1,0 +1,25 @@
+// BROKEN: Agent label references a node that doesn't exist
+pipeline {
+    agent { label 'nonexistent-node' }
+
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Building application...'
+                sh 'mvn clean package'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'mvn test'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'Deploying...'
+                sh './deploy.sh'
+            }
+        }
+    }
+}

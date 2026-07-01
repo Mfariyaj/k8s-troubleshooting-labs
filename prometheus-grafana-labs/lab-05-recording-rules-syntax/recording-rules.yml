@@ -1,0 +1,28 @@
+# Broken Recording Rules - Multiple Syntax Issues
+groups:
+  # BUG: Duplicate group name 'node_recording_rules' (see below)
+  - name: node_recording_rules
+    rules:
+      - record: node:cpu:usage_ratio
+        # BUG: Missing closing parenthesis and invalid function usage
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]) by (instance)
+        labels:
+          tier: infrastructure
+
+      - record: node:memory:usage_ratio
+        # BUG: Missing 'labels' field is actually valid, but expr has unmatched brackets
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes
+
+  # BUG: Duplicate group name - Prometheus rejects duplicate group names in same file
+  - name: node_recording_rules
+    rules:
+      - record: node:disk:usage_ratio
+        expr: 1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})
+        labels:
+          tier: infrastructure
+
+      - record: instance:http_requests:rate5m
+        # BUG: invalid expression - irate needs range vector but also has syntax error with extra comma
+        expr: sum(irate(http_requests_total{job="webapp",}[5m])) by (instance,)
+        labels:
+          aggregation: instance

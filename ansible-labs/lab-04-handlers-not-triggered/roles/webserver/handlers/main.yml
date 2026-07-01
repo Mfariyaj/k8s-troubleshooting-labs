@@ -1,0 +1,13 @@
+---
+# roles/webserver/handlers/main.yml
+
+# BUG 1: Name is "Restart Nginx" (capital R, N) but task notifies "restart nginx" (lowercase)
+- name: Restart Nginx
+  ansible.builtin.debug:
+    msg: "HANDLER: Restarting Nginx service"
+  register: nginx_restarted
+
+# BUG 3: Name is "reload nginx" but task notifies "reload nginx service"
+- name: reload nginx
+  ansible.builtin.debug:
+    msg: "HANDLER: Reloading Nginx configuration"

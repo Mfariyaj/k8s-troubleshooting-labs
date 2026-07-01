@@ -1,0 +1,36 @@
+---
+- name: Install and configure web application
+  hosts: webservers
+  gather_facts: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install nginx package
+      apt:
+        name: nginx
+        state: present
+
+    - name: Install application dependencies
+      apt:
+        name:
+          - python3-pip
+          - python3-venv
+          - git
+        state: present
+
+    - name: Create application directory
+      file:
+        path: /opt/myapp
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Start nginx service
+      service:
+        name: nginx
+        state: started
+        enabled: yes

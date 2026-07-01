@@ -1,0 +1,6 @@
+---
+# roles/app_config/defaults/main.yml
+# Lowest precedence - should be overridden by inventory vars
+app_port: 3000
+app_bind_address: "0.0.0.0"
+app_workers: 4

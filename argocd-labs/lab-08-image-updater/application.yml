@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: image-updater-app
+  namespace: argocd
+  annotations:
+    # BUG 1: Wrong annotation key format - uses hyphen instead of dot
+    # Correct: argocd-image-updater.argoproj.io/image-list
+    argocd-image-updater.argoproj.io/image_list: "myapp=myregistry.example.com/myapp"
+    # BUG 2: Tag constraint uses semver without 'v' prefix but images use v1.0.0, v2.0.0
+    argocd-image-updater.argoproj.io/myapp.update-strategy: "semver"
+    argocd-image-updater.argoproj.io/myapp.allow-tags: "regexp:^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    # BUG 3: Write-back method set to 'git' but no write-back-target configured
+    argocd-image-updater.argoproj.io/write-back-method: "git"
+    # BUG 4: Missing the git-branch for write-back
+    # argocd-image-updater.argoproj.io/git-branch: "main"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example-org/apps.git
+    targetRevision: HEAD
+    path: apps/myapp
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: image-updater-ns
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

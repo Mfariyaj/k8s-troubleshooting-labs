@@ -1,0 +1,70 @@
+stages:
+  - detect
+  - build
+  - deploy
+
+variables:
+  DEPLOY_ENABLED: "false"
+
+detect-changes:
+  stage: detect
+  script:
+    - echo "Detecting changes..."
+    - |
+      if git diff --name-only HEAD~1 | grep -q "^src/"; then
+        echo "SOURCE_CHANGED=true" >> variables.env
+      fi
+  artifacts:
+    reports:
+      dotenv: variables.env
+
+build-backend:
+  stage: build
+  script:
+    - npm run build:api
+  rules:
+    - if: '$SOURCE_CHANGED == true'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: never
+    - changes:
+        - src/api/**/*
+      when: always
+
+build-frontend:
+  stage: build
+  script:
+    - npm run build:ui
+  rules:
+    - if: '$CI_MERGE_REQUEST_SOURCE_BRANCH != ""'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: manual
+    - changes:
+        - src/components/**/*
+    - when: never
+
+deploy:
+  stage: deploy
+  script:
+    - ./deploy.sh
+  rules:
+    - if: '$DEPLOY_ENABLED == "true"'
+      when: always
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+    - if: '$DEPLOY_ENABLED == "false"'
+      when: never
+  environment:
+    name: production
+
+deploy-canary:
+  stage: deploy
+  script:
+    - ./deploy-canary.sh
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+/'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DEPLOY_ENABLED == "true"'
+      when: always
+    - when: always
+  environment:
+    name: canary

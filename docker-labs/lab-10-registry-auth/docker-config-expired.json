@@ -1,0 +1,10 @@
+#!/bin/bash
+# Simulated expired Docker registry credentials
+{
+  "auths": {
+    "registry.internal.company.io": {
+      "auth": "bXl0ZWFtOmV4cGlyZWRfdG9rZW5fMjAyNDAx",
+      "email": "devops@company.io"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+---
+# roles/app/tasks/main.yml
+- name: Deploy application code
+  ansible.builtin.debug:
+    msg: "Deploying application (skip_app_deploy={{ skip_app_deploy | default(false) }})"
+  when: not (skip_app_deploy | default(false))
+
+- name: Configure application
+  ansible.builtin.copy:
+    content: |
+      APP_NAME=myapp
+      DB_NAME={{ db_name | default('app_db') }}
+      ENVIRONMENT=production
+    dest: /tmp/app.env
+    mode: '0644'
+
+- name: Start application service
+  ansible.builtin.debug:
+    msg: "Application service started"

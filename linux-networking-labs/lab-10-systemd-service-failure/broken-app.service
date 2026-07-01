@@ -1,0 +1,29 @@
+[Unit]
+Description=Lab 10 Broken Application Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+# BUG 1: Type=notify but the app never calls sd_notify
+# This causes systemd to wait for readiness notification that never comes
+Type=notify
+
+# BUG 2: Wrong ExecStart path (typo: /usr/loca/ instead of /usr/local/)
+ExecStart=/usr/loca/bin/lab10-app
+
+# BUG 3: RestartSec too low - will hit systemd start rate limit
+Restart=always
+RestartSec=0
+StartLimitIntervalSec=10
+StartLimitBurst=3
+
+# BUG 4: Working directory doesn't exist
+WorkingDirectory=/opt/lab10-nonexistent-dir
+
+# Correct settings (for reference after fixing)
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

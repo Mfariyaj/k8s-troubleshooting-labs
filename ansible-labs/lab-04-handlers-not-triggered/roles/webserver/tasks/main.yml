@@ -1,0 +1,40 @@
+---
+# roles/webserver/tasks/main.yml
+- name: Install nginx
+  ansible.builtin.debug:
+    msg: "nginx is already installed"
+
+- name: Deploy nginx configuration
+  ansible.builtin.copy:
+    content: |
+      worker_processes auto;
+      events { worker_connections 1024; }
+      http {
+        server {
+          listen {{ http_port | default(80) }};
+          root /var/www/html;
+        }
+      }
+    dest: /tmp/nginx.conf
+    mode: '0644'
+  # BUG 1: Handler name case mismatch - handler is "Restart Nginx" not "restart nginx"
+  notify: restart nginx
+
+- name: Deploy site configuration
+  ansible.builtin.command: cat /nonexistent/file.conf
+  # BUG 2: ignore_errors swallows the failure AND prevents notify from firing
+  ignore_errors: yes
+  notify: reload nginx service
+  # BUG 3: Handler name mismatch - handler is "reload nginx" not "reload nginx service"
+
+- name: Ensure nginx config is valid
+  ansible.builtin.debug:
+    msg: "Config validation passed"
+  notify: Restart Nginx
+
+# BUG 4: This handler is defined IN the tasks file instead of handlers/main.yml
+# It will be executed as a regular task, not as a handler
+- name: Restart Nginx Inline
+  ansible.builtin.debug:
+    msg: "HANDLER EXECUTED: Nginx restarted"
+  register: nginx_restarted_inline

@@ -1,0 +1,6 @@
+---
+# group_vars/staging.yml
+deploy_version: "3.1.0-beta"
+max_instances: 2
+health_check_url: "http://localhost:9090/health"
+log_level: DEBUG

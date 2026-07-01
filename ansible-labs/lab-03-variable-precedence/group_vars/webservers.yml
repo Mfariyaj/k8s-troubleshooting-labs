@@ -1,0 +1,6 @@
+---
+# Variables for webservers group
+http_port: 8080
+app_env: staging
+max_connections: 250
+log_level: debug

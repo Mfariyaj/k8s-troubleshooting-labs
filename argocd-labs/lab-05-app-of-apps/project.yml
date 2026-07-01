@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: restricted
+  namespace: argocd
+spec:
+  description: "Restricted project for team services"
+  # BUG: Source repos don't include the actual repo used by child apps
+  sourceRepos:
+    - "https://github.com/example-org/old-repo.git"
+  # BUG: Destinations only allow 'default' namespace and wrong server URL format
+  destinations:
+    - namespace: "default"
+      # BUG: Has port :443 appended, but child apps use URL without port
+      server: "https://kubernetes.default.svc:443"
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

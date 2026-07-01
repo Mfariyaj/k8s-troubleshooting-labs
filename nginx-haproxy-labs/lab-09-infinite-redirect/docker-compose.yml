@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8089:80"
+      - "8090:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - lab09-network
+
+  app:
+    build: ./app
+    expose:
+      - "3000"
+    networks:
+      - lab09-network
+
+networks:
+  lab09-network:
+    driver: bridge

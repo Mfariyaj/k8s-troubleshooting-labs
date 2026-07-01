@@ -1,0 +1,84 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.7",
+  "serial": 42,
+  "lineage": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "outputs": {
+    "db_endpoint": {
+      "value": "prod-app-database.cdef1234.us-east-1.rds.amazonaws.com:5432",
+      "type": "string"
+    },
+    "db_replica_endpoint": {
+      "value": "prod-app-database-replica.cdef1234.us-east-1.rds.amazonaws.com:5432",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "production",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 2,
+          "attributes": {
+            "identifier": "prod-app-database",
+            "engine": "postgres",
+            "engine_version": "15.4",
+            "instance_class": "db.r5.xlarge",
+            "allocated_storage": 100,
+            "max_allocated_storage": 500,
+            "storage_type": "gp3",
+            "storage_encrypted": true,
+            "db_name": "appdb",
+            "username": "admin",
+            "multi_az": false,
+            "backup_retention_period": 3,
+            "backup_window": "03:00-04:00",
+            "maintenance_window": "mon:04:00-mon:05:00",
+            "vpc_security_group_ids": ["sg-0abc123def456"],
+            "db_subnet_group_name": "prod-db-subnets",
+            "deletion_protection": true,
+            "skip_final_snapshot": false,
+            "final_snapshot_identifier": "prod-app-database-final",
+            "performance_insights_enabled": true,
+            "endpoint": "prod-app-database.cdef1234.us-east-1.rds.amazonaws.com:5432",
+            "arn": "arn:aws:rds:us-east-1:123456789012:db:prod-app-database",
+            "tags": {
+              "Name": "prod-app-database",
+              "Environment": "production",
+              "Team": "platform",
+              "ManagedBy": "terraform"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "replica",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "schema_version": 2,
+          "attributes": {
+            "identifier": "prod-app-database-replica",
+            "replicate_source_db": "prod-app-database",
+            "instance_class": "db.t3.medium",
+            "vpc_security_group_ids": ["sg-0abc123def456"],
+            "endpoint": "prod-app-database-replica.cdef1234.us-east-1.rds.amazonaws.com:5432",
+            "arn": "arn:aws:rds:us-east-1:123456789012:db:prod-app-database-replica",
+            "tags": {
+              "Name": "prod-app-database-replica",
+              "Environment": "production",
+              "ManagedBy": "terraform"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "check_results": null
+}

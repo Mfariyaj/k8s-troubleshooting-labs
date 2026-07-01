@@ -1,0 +1,15 @@
+# Broken crontab - Multiple issues prevent execution
+# Issue 1: Wrong PATH - commands won't be found
+PATH=/nonexistent/bin
+
+# Issue 2: Missing SHELL definition (not critical but compounds issues)
+
+# Issue 3: The % character is not escaped - cron interprets % as newline
+# This causes the command to be truncated at the first %
+* * * * * /opt/lab07-scripts/script-to-run.sh --date=$(date +%Y-%m-%d) --format=%H:%M > /tmp/lab07-output.log 2>&1
+
+# Issue 4: This script path doesn't exist (typo in path)
+*/5 * * * * /opt/lab07-script/backup.sh > /tmp/lab07-backup.log 2>&1
+
+# Issue 5: Six fields instead of five (extra field makes it invalid on some systems)
+* * * * * * echo "health check" > /tmp/lab07-health.log

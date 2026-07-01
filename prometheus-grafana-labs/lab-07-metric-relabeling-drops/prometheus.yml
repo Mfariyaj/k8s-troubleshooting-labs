@@ -1,0 +1,28 @@
+# Broken Prometheus Configuration - Metric Relabeling Drops All Metrics
+# The metric_relabel_configs accidentally drops everything
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    # BUG: This metric_relabel_configs drops ALL metrics because regex '.*' matches everything
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '.*'
+        action: drop
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    # BUG: Same issue - intended to drop specific metrics but regex matches all
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '.*'
+        action: drop
+      - source_labels: [__name__]
+        regex: 'node_cpu_guest_seconds_total'
+        action: drop

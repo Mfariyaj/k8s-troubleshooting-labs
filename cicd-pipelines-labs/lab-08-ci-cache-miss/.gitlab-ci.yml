@@ -1,0 +1,55 @@
+stages:
+  - build
+  - test
+
+variables:
+  NODE_VERSION: "18"
+
+build:
+  stage: build
+  image: node:${NODE_VERSION}
+  cache:
+    key:
+      files:
+        - yarn.lock
+    paths:
+      - node_modules/
+    policy: pull-push
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 hour
+
+test:
+  stage: test
+  image: node:${NODE_VERSION}
+  cache:
+    key:
+      files:
+        - package.json
+      prefix: test-specific-runner-${CI_RUNNER_ID}-${CI_COMMIT_SHORT_SHA}
+    paths:
+      - node_modules/
+    policy: pull
+  script:
+    - npm ci
+    - npm run test
+  needs:
+    - build
+
+lint:
+  stage: test
+  image: node:${NODE_VERSION}
+  cache:
+    key: "static-key-that-never-changes"
+    paths:
+      - .npm/
+    policy: pull
+  script:
+    - npm ci --cache .npm
+    - npm run lint
+  needs:
+    - build

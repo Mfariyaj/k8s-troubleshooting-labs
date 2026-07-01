@@ -1,0 +1,84 @@
+name: Conditional Pipeline
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches: [main]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend-changed: ${{ steps.filter.outputs.backend }}
+      frontend-changed: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'src/api/**'
+              - 'src/services/**'
+            frontend:
+              - 'src/components/**'
+              - 'src/pages/**'
+
+  build-backend:
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: ${{ needs.detect-changes.outputs.backend_changed == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend
+        run: npm run build:api
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: ${{ needs.detect-changes.outputs.frontend-changed == true }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build frontend
+        run: npm run build:ui
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy application
+        run: |
+          echo "Deploying..."
+          ./deploy.sh
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: ${{ github.event.pusher.name == 'admin' }}
+    steps:
+      - name: Send notification
+        run: |
+          echo "Notifying admin..."
+          curl -X POST "$SLACK_WEBHOOK" -d '{"text":"Deploy complete"}'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: ${{ always() && github.event_name == 'push' }}
+    steps:
+      - name: Cleanup resources
+        if: ${{ cancelled() }}
+        run: echo "This step has conflicting conditions"
+
+      - name: Always cleanup
+        if: always()
+        run: |
+          echo "Cleaning up..."
+          rm -rf /tmp/deploy-*

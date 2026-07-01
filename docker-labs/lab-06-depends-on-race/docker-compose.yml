@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://appuser:secret123@db:5432/myapp
+      - FLASK_ENV=production
+    # BUG: depends_on without condition only waits for container start, 
+    # NOT for PostgreSQL to be ready to accept connections
+    depends_on:
+      - db
+    restart: "no"  # Don't restart so the error is visible
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=secret123
+      - POSTGRES_DB=myapp
+    # BUG: No healthcheck defined - compose can't know when DB is ready
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      # Init script to slow down DB startup (simulate real-world)
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  pg-data:

@@ -1,0 +1,35 @@
+---
+- name: Run long-running tasks asynchronously
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Start long-running package upgrade
+      apt:
+        upgrade: dist
+        update_cache: yes
+      async: 30
+      poll: 0
+      register: upgrade_job
+
+    - name: Start long-running database backup
+      shell: /usr/local/bin/backup_db.sh
+      async: 30
+      poll: 0
+      register: backup_job
+
+    - name: Perform other tasks while waiting
+      debug:
+        msg: "Doing other work while async jobs run..."
+
+    - name: Deploy application code
+      copy:
+        src: app/
+        dest: /opt/myapp/
+
+    # BUG: Missing async_status tasks to check job completion!
+    # The playbook never verifies if the async tasks finished successfully.
+    # Without checking, failures are silently ignored.
+
+    - name: Final status message
+      debug:
+        msg: "Deployment complete! (But did the async tasks finish?)"

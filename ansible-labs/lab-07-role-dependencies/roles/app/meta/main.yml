@@ -1,0 +1,6 @@
+---
+dependencies:
+  - role: db
+    vars:
+      db_name: appdb
+      db_user: appuser

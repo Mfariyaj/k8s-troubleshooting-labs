@@ -1,0 +1,9 @@
+{
+  "name": "lab08-cache-app",
+  "version": "1.0.0",
+  "description": "App returning user-specific data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

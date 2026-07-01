@@ -1,0 +1,52 @@
+# Broken Alertmanager Configuration - Routing Issues
+# Multiple bugs in receiver names, route matching, and route continuation
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alerts@example.com'
+
+# BUG: Route references 'slack-team' but receiver is defined as 'slack_team'
+route:
+  receiver: 'slack-team'
+  group_by: ['alertname', 'cluster']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    # BUG: match uses 'severity: critical' but alerts have label 'severity: "critical"'
+    # This should work, but the receiver name is wrong
+    - match:
+        team: frontend
+      receiver: 'slack-team'
+    
+    # BUG: Missing continue: true - this means the second route below is never evaluated
+    # for alerts that match team=backend
+    - match:
+        team: backend
+      receiver: 'pagerduty_team'
+    
+    # This route will never receive alerts because team=backend is caught above
+    # without continue: true
+    - match:
+        severity: critical
+      receiver: 'pagerduty_team'
+
+# Receiver definitions
+receivers:
+  # NOTE: Name is 'slack_team' (underscore) not 'slack-team' (hyphen)
+  - name: 'slack_team'
+    slack_configs:
+      - api_url: 'https://fake-slack-webhook.example.com/services/FAKE/FAKE/FAKE'
+        channel: '#alerts'
+        send_resolved: true
+
+  - name: 'pagerduty_team'
+    pagerduty_configs:
+      - service_key: 'your-pagerduty-service-key'
+        severity: '{{ .CommonLabels.severity }}'
+
+  - name: 'email_team'
+    email_configs:
+      - to: 'oncall@example.com'
+        send_resolved: true

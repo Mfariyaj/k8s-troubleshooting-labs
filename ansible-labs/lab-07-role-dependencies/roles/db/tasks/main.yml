@@ -1,0 +1,17 @@
+---
+# roles/db/tasks/main.yml
+- name: Configure database
+  ansible.builtin.debug:
+    msg: "Configuring database: {{ db_name | default('default_db') }}"
+
+- name: Create database schema
+  ansible.builtin.copy:
+    content: |
+      CREATE DATABASE IF NOT EXISTS {{ db_name | default('app_db') }};
+      CREATE USER app_user WITH PASSWORD 'changeme';
+    dest: /tmp/db_schema.sql
+    mode: '0644'
+
+- name: Initialize database
+  ansible.builtin.debug:
+    msg: "Database {{ db_name | default('app_db') }} initialized"

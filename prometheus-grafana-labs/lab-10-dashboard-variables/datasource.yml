@@ -1,0 +1,12 @@
+# Grafana Datasource - note the UID is 'prom-ds-01' 
+# but dashboard.json references 'WRONG-UID-12345' and 'prometheus-ds'
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    url: http://prometheus:9090
+    access: proxy
+    isDefault: true
+    uid: prom-ds-01
+    editable: true

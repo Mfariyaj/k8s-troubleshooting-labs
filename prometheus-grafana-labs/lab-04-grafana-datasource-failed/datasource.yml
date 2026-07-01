@@ -1,0 +1,16 @@
+# Broken Grafana Datasource Provisioning
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    # BUG: URL uses 'prometheus' but the docker service name is 'prometheus-server'
+    url: http://prometheus:9090
+    # BUG: access mode 'direct' means browser connects directly (won't work in Docker)
+    # Should be 'proxy' so Grafana backend proxies the requests
+    access: direct
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: '15s'
+      httpMethod: POST

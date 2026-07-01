@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    environment:
+      # BUG: Backend listens on 3000, not 8080
+      - BACKEND_URL=http://backend:8080
+    networks:
+      - frontend-net
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    environment:
+      # BUG: Service is called "db" not "database"
+      - DATABASE_HOST=database
+      - DATABASE_PORT=5432
+      - DATABASE_USER=appuser
+      - DATABASE_PASSWORD=secret123
+      - DATABASE_NAME=myapp
+      # BUG: Service is called "redis" not "cache"
+      - REDIS_HOST=cache
+      - REDIS_PORT=6379
+    networks:
+      # BUG: Backend is only on backend-net, not shared with frontend
+      - backend-net
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=secret123
+      - POSTGRES_DB=myapp
+    networks:
+      - backend-net
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      # BUG: Redis is on its own network, not shared with backend
+      - redis-net
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  redis-net:
+    driver: bridge
+
+volumes:
+  db-data:

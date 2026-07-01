@@ -1,0 +1,23 @@
+---
+- name: Deploy web application with correct settings
+  hosts: webservers
+  become: yes
+  roles:
+    - app
+  tasks:
+    - name: Display the configured HTTP port
+      debug:
+        msg: "Application will run on port {{ http_port }}"
+
+    - name: Display the environment
+      debug:
+        msg: "Deploying to environment: {{ app_env }}"
+
+    - name: Display max connections
+      debug:
+        msg: "Max connections: {{ max_connections }}"
+
+    - name: Template the application config
+      template:
+        src: app.conf.j2
+        dest: "/opt/app/config/app.conf"

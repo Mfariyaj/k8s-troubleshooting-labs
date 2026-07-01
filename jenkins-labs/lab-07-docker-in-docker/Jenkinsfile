@@ -1,0 +1,36 @@
+// BROKEN: Docker build inside Jenkins without Docker socket access
+// Container doesn't have /var/run/docker.sock mounted
+pipeline {
+    agent any
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // BUG: docker.build() will fail because the Docker socket
+                    // is not mounted into the Jenkins container
+                    def app = docker.build("my-app:${env.BUILD_NUMBER}")
+                }
+            }
+        }
+        stage('Test Image') {
+            steps {
+                script {
+                    docker.image("my-app:${env.BUILD_NUMBER}").inside {
+                        sh 'echo "Running tests inside container"'
+                        sh './run-tests.sh'
+                    }
+                }
+            }
+        }
+        stage('Push Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://registry.example.com', 'docker-creds') {
+                        docker.image("my-app:${env.BUILD_NUMBER}").push('latest')
+                    }
+                }
+            }
+        }
+    }
+}

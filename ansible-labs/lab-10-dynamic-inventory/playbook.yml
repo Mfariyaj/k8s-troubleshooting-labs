@@ -1,0 +1,23 @@
+---
+- name: Deploy application using dynamic inventory
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Gather facts
+      setup:
+
+    - name: Display discovered hosts
+      debug:
+        msg: "Deploying to {{ inventory_hostname }} at {{ ansible_host }}"
+
+    - name: Install application packages
+      apt:
+        name:
+          - nginx
+          - python3
+        state: present
+
+    - name: Start services
+      service:
+        name: nginx
+        state: started

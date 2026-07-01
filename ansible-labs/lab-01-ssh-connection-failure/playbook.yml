@@ -1,0 +1,20 @@
+---
+- name: Deploy application to web servers
+  hosts: webservers
+  gather_facts: yes
+  tasks:
+    - name: Ensure nginx is installed
+      apt:
+        name: nginx
+        state: present
+
+    - name: Copy application config
+      copy:
+        src: app.conf
+        dest: /etc/nginx/sites-available/app.conf
+
+    - name: Start nginx service
+      service:
+        name: nginx
+        state: started
+        enabled: yes

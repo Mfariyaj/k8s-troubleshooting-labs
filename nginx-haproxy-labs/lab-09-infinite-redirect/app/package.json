@@ -1,0 +1,9 @@
+{
+  "name": "lab09-redirect-app",
+  "version": "1.0.0",
+  "description": "App that also does HTTPS redirect",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

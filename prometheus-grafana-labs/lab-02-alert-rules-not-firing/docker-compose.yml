@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus-lab02
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: node-exporter-lab02
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: alertmanager-lab02
+    ports:
+      - "9093:9093"
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge

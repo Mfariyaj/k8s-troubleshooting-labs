@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    volumes:
+      # This volume will be owned by root inside the container
+      - app-data:/app/data
+    environment:
+      - LOG_PATH=/app/data/output.log
+      - DATA_DIR=/app/data
+
+volumes:
+  app-data:

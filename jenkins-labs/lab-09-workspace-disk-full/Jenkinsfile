@@ -1,0 +1,47 @@
+// BROKEN: No workspace cleanup - generates huge files every build
+// Workspace fills up disk over repeated builds
+pipeline {
+    agent any
+
+    // BUG: No options { disableConcurrentBuilds() } or workspace cleanup
+
+    stages {
+        stage('Generate Data') {
+            steps {
+                // BUG: Generates large files without cleanup
+                sh '''
+                    echo "Downloading dependencies..."
+                    dd if=/dev/zero of=vendor-cache.tar bs=1M count=200
+                    
+                    echo "Building assets..."
+                    dd if=/dev/zero of=compiled-assets.tar bs=1M count=150
+                    
+                    echo "Creating debug artifacts..."
+                    for i in $(seq 1 50); do
+                        dd if=/dev/zero of=debug-dump-${i}.log bs=1M count=10
+                    done
+                '''
+            }
+        }
+        stage('Build') {
+            steps {
+                sh 'echo "Building application..."'
+                sh 'ls -lh *.tar *.log | head -20'
+            }
+        }
+        stage('Test') {
+            steps {
+                sh 'echo "Running tests..."'
+                sh 'echo "Test output" > test-output.log'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh 'echo "Deploying..."'
+                // BUG: No deleteDir() or cleanWs() in post section
+            }
+        }
+    }
+
+    // BUG: Missing post { always { cleanWs() } } or deleteDir()
+}

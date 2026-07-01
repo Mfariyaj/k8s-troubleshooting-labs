@@ -1,0 +1,11 @@
+worker_processes auto;
+events {
+    worker_connections 1024;
+}
+http {
+    server {
+        listen {{ http_port | default(80) }};
+        server_name {{ server_name | default('localhost') }};
+        root /var/www/html;
+    }
+}

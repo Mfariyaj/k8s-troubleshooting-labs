@@ -1,0 +1,5 @@
+---
+dependencies:
+  - role: app
+    vars:
+      app_notify_db: true

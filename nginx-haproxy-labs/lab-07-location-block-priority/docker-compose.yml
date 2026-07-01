@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8087:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - lab07-network
+
+networks:
+  lab07-network:
+    driver: bridge

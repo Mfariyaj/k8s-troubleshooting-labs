@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pre-sync-db-migration
+  namespace: hook-failure-lab
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: db-migrate
+          image: postgres:nonexistent-version
+          command: ["sh", "-c", "echo 'Running DB migration...' && psql -h db -U admin -d app -f /migrations/001.sql"]
+          env:
+            - name: PGPASSWORD
+              value: "secretpassword"
+      restartPolicy: Never

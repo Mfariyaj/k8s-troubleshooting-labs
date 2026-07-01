@@ -1,0 +1,9 @@
+{
+  "name": "lab05-backend",
+  "version": "1.0.0",
+  "description": "Backend server that identifies itself",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

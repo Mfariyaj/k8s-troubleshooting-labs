@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: sync-waves-ns
+  annotations:
+    # BUG: PVC should be wave 1 (first), but is set to wave 2
+    # Database needs this PVC but DB is in wave 3 — PVC should come before DB
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

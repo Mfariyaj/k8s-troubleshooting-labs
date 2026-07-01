@@ -1,0 +1,11 @@
+---
+# roles/app_config/tasks/main.yml
+- name: Template application config
+  ansible.builtin.template:
+    src: app.conf.j2
+    dest: /tmp/app.conf
+    mode: '0644'
+
+- name: Debug final port value
+  ansible.builtin.debug:
+    msg: "Application configured on port: {{ app_port }}"

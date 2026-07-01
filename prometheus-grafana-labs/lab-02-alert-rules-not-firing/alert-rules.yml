@@ -1,0 +1,33 @@
+# Broken Alert Rules - PromQL Syntax Issues
+groups:
+  - name: node_alerts
+    rules:
+      - alert: HighCPUUsage
+        # BUG: rate() requires a range vector selector like [5m], not instant vector
+        expr: rate(node_cpu_seconds_total{mode="idle"}) >= 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU idle rate is above 90% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        # BUG: should use '>' to fire when memory is above threshold, '>=' fires too eagerly
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes >= 0.8
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is at {{ $value | humanizePercentage }}"
+
+      - alert: InstanceDown
+        # BUG: rate() used on a gauge metric 'up' which makes no sense, and missing range vector
+        expr: rate(up) >= 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} has been down for more than 1 minute"

@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: exclusion-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example-org/apps.git
+    targetRevision: HEAD
+    path: apps/myapp
+    directory:
+      recurse: true
+      # BUG: Exclude pattern is too broad - matches configmap.yaml and secret.yaml
+      exclude: "{*config*,*secret*}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: exclusion-ns
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      # BUG: RespectIgnoreDifferences prevents drift detection on excluded resources
+      - RespectIgnoreDifferences=true
+  # BUG: ignoreDifferences is overly broad
+  ignoreDifferences:
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data

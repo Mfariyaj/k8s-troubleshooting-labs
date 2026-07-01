@@ -1,0 +1,10 @@
+---
+# roles/common/meta/main.yml
+# BUG: Circular dependency! common depends on app, but app depends on db depends on common
+dependencies:
+  - role: app
+    vars:
+      skip_app_deploy: true
+
+# BUG: allow_duplicates false means this role won't run again if already included
+allow_duplicates: false

@@ -1,0 +1,20 @@
+---
+# roles/apache_hardening/tasks/main.yml
+- name: Disable directory listing
+  ansible.builtin.copy:
+    content: |
+      <Directory /var/www/html>
+        Options -Indexes
+      </Directory>
+    dest: /tmp/hardening.conf
+    mode: '0644'
+  # BUG: notifies "restart apache2" which is the ROLE handler, not playbook handler
+  notify: restart apache2
+
+- name: Set server tokens to minimal
+  ansible.builtin.lineinfile:
+    path: /tmp/apache2.conf
+    regexp: '^ServerTokens'
+    line: 'ServerTokens Prod'
+    create: true
+  notify: restart apache2

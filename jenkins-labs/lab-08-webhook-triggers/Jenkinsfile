@@ -1,0 +1,36 @@
+// BROKEN: Wrong trigger type for webhook-based builds
+// Using 'pollSCM' instead of the proper webhook trigger
+pipeline {
+    agent any
+
+    triggers {
+        // BUG: pollSCM will poll every minute but won't respond to webhooks
+        // Should use 'githubPush()' or generic webhook trigger
+        pollSCM('* * * * *')
+        
+        // BUG: cron trigger instead of webhook - builds on schedule, not on push
+        cron('H/5 * * * *')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // BUG: Using git step without proper SCM configuration for webhooks
+                git url: 'https://github.com/example/my-repo.git',
+                    branch: 'main',
+                    credentialsId: 'github-token'
+            }
+        }
+        stage('Build') {
+            steps {
+                sh 'echo "Building on commit: ${GIT_COMMIT}"'
+                sh 'make build'
+            }
+        }
+        stage('Notify') {
+            steps {
+                sh 'echo "Build triggered by: ${BUILD_CAUSE}"'
+            }
+        }
+    }
+}

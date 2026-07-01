@@ -1,0 +1,7 @@
+---
+- name: Deploy full application stack
+  hosts: all
+  become: yes
+  roles:
+    - app
+    - db

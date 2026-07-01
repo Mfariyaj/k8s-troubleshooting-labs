@@ -1,0 +1,6 @@
+---
+# roles/app_config/vars/main.yml
+# BUG: This has HIGHER precedence than group_vars, host_vars, and even set_fact!
+# This will override everything and set port to 5000
+app_port: 5000
+app_max_connections: 1000

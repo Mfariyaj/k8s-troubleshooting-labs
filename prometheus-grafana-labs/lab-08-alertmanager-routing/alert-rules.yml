@@ -1,0 +1,21 @@
+# Alert rules that fire to test routing
+groups:
+  - name: test_alerts
+    rules:
+      - alert: BackendHighLatency
+        expr: up == 1
+        for: 0m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Backend service high latency"
+
+      - alert: FrontendErrors
+        expr: up == 1
+        for: 0m
+        labels:
+          severity: warning
+          team: frontend
+        annotations:
+          summary: "Frontend error rate elevated"

@@ -1,0 +1,5 @@
+---
+# Variables specific to web1
+http_port: 9090
+app_env: development
+max_connections: 50

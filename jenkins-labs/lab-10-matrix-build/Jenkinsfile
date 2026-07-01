@@ -1,0 +1,57 @@
+// BROKEN: Matrix build with wrong axis values and bad exclude syntax
+pipeline {
+    agent any
+
+    stages {
+        stage('Matrix Build') {
+            matrix {
+                axes {
+                    axis {
+                        name 'PLATFORM'
+                        // BUG: Values contain spaces (invalid)
+                        values 'linux amd64', 'windows amd64', 'darwin arm64'
+                    }
+                    axis {
+                        name 'JAVA_VERSION'
+                        // BUG: Version values don't match tool installer names
+                        values '8', '11', '17', '21'
+                    }
+                }
+                // BUG: exclude syntax is wrong - using 'axis' instead of proper exclude format
+                excludes {
+                    exclude {
+                        // WRONG: Should use axis directive with name/values, not a when condition
+                        axis {
+                            name 'PLATFORM'
+                            values 'darwin arm64'
+                        }
+                        axis {
+                            name 'JAVA_VERSION' 
+                            value '8'
+                        }
+                    }
+                    exclude {
+                        // BUG: 'notValues' is not a valid directive
+                        axis {
+                            name 'PLATFORM'
+                            notValues 'linux amd64'
+                        }
+                    }
+                }
+                stages {
+                    stage('Build') {
+                        steps {
+                            sh "echo Building on ${PLATFORM} with Java ${JAVA_VERSION}"
+                            sh "java -version"
+                        }
+                    }
+                    stage('Test') {
+                        steps {
+                            sh "echo Testing on ${PLATFORM} with Java ${JAVA_VERSION}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

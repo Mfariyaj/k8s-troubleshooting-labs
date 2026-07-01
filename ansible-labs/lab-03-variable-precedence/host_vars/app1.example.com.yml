@@ -1,0 +1,5 @@
+---
+# host_vars/app1.example.com.yml
+# This should override group_vars
+app_port: 9090
+app_instance_id: "prod-01"

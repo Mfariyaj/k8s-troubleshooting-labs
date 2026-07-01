@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: child-api
+  namespace: argocd
+spec:
+  # BUG: Using 'restricted' project which doesn't permit this destination
+  project: restricted
+  source:
+    # BUG: This repo is not in the project's sourceRepos list
+    repoURL: https://github.com/example-org/gitops-apps.git
+    targetRevision: HEAD
+    path: services/api
+  destination:
+    # BUG: Project allows 'https://kubernetes.default.svc:443' not this format
+    server: https://kubernetes.default.svc
+    # BUG: Project only allows 'default' namespace
+    namespace: api-ns
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

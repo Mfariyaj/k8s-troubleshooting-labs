@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8084:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - lab04-network
+
+  app:
+    build: ./app
+    expose:
+      - "3000"
+    networks:
+      - lab04-network
+
+networks:
+  lab04-network:
+    driver: bridge

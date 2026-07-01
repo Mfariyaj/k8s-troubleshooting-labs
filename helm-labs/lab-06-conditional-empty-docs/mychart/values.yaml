@@ -1,0 +1,12 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.23"
+  pullPolicy: IfNotPresent
+
+monitoring:
+  enabled: false
+  interval: 30s
+  path: /metrics
+  port: 9090

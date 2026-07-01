@@ -1,0 +1,5 @@
+{{/*
+  This template references the library chart's deployment template,
+  but uses the WRONG name: "mylib.deploy" instead of "mylib.deployment"
+*/}}
+{{ include "mylib.deploy" . }}

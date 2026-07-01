@@ -1,0 +1,9 @@
+{
+  "name": "lab06-websocket-server",
+  "version": "1.0.0",
+  "description": "WebSocket echo server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,7 @@
+---
+# Role defaults (lowest precedence)
+http_port: 3000
+app_env: testing
+max_connections: 10
+app_name: default-app
+log_level: warn

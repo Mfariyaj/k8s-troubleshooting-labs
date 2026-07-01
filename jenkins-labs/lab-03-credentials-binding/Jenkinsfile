@@ -1,0 +1,35 @@
+// BROKEN: Wrong credential ID and type mismatch
+// 1. Credential ID 'aws-secret-key' doesn't exist (actual: 'aws-credentials')
+// 2. Using usernamePassword binding for a secret text credential
+pipeline {
+    agent any
+
+    environment {
+        // BUG: credential ID doesn't match what's configured in Jenkins
+        AWS_CREDS = credentials('aws-secret-key')
+    }
+
+    stages {
+        stage('Authenticate') {
+            steps {
+                // BUG: Using usernamePassword() for what should be a string credential
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-registry-token',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh 'echo "Logging in to Docker registry..."'
+                    sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS registry.example.com'
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh '''
+                    aws s3 cp app.tar.gz s3://my-bucket/ \
+                      --region us-east-1
+                '''
+            }
+        }
+    }
+}

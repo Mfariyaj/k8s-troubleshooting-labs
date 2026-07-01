@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: exclusion-ns
+data:
+  APP_ENV: "production"
+  APP_LOG_LEVEL: "info"
+  APP_FEATURE_FLAG_NEW_UI: "true"
+  DATABASE_HOST: "postgres.exclusion-ns.svc.cluster.local"

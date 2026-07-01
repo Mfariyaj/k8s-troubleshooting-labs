@@ -1,0 +1,69 @@
+name: Build with Caching
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-exact-v2
+            ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}-exact-v1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache build output
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('src/**/*.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('src/**/*.ts') }}-prod
+            ${{ runner.os }}-nextjs-${{ hashFiles('src/**/*.tsx') }}-prod
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-lint-${{ hashFiles('packages/*/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-lint-${{ hashFiles('packages/*/package.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint

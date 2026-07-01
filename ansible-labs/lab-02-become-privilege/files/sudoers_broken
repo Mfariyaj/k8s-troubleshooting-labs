@@ -1,0 +1,6 @@
+# /etc/sudoers.d/deploy
+# BUG: Missing NOPASSWD - will prompt for password which Ansible can't provide
+deploy ALL=(ALL) ALL
+
+# FIXED version should be:
+# deploy ALL=(ALL) NOPASSWD: ALL

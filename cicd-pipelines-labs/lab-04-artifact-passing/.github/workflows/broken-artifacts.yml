@@ -1,0 +1,74 @@
+name: Build and Test Pipeline
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install and Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+          retention-days: 0
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Run integration tests
+        run: |
+          ls -la build-artifacts/
+          npm run test:integration
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build for deployment
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: ./deploy-pkg
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying from ./deploy-pkg"
+          ls -la ./deploy-pkg/
+          ./scripts/deploy.sh staging
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    steps:
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+
+      - name: Run smoke tests
+        run: |
+          cat test-results/report.json
+          ./run-smoke-tests.sh

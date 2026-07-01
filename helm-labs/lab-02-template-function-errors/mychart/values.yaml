@@ -1,0 +1,19 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.23"
+  pullPolicy: IfNotPresent
+
+labels:
+  environment: production
+  team: backend
+  tier: web
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

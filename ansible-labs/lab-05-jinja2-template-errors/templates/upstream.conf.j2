@@ -1,0 +1,18 @@
+# Upstream Configuration
+upstream backend {
+    # BUG: using | to_json filter instead of proper loop or join
+    # This produces JSON array syntax, not valid nginx upstream config
+    {{ upstream_servers | to_json }};
+
+    # Should be:
+    # {% for server in upstream_servers %}
+    # server {{ server }};
+    # {% endfor %}
+}
+
+# BUG: Referencing undefined variable 'max_fails' without default filter
+upstream api_backend {
+    {% for server in upstream_servers %}
+    server {{ server }} max_fails={{ max_fails }} fail_timeout={{ fail_timeout }}s;
+    {% endfor %}
+}

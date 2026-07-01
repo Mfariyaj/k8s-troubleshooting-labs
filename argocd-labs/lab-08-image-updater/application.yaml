@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: image-updater-app
+  namespace: argocd
+  annotations:
+    # BUG: Wrong annotation key - should be 'argocd-image-updater.argoproj.io/image-list'
+    argocd-image-updater.argoproj.io/images: nginx=nginx
+    argocd-image-updater.argoproj.io/nginx.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: git
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: image-updater-lab
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

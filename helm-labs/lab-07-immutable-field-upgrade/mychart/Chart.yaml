@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mychart
+description: A Helm chart demonstrating immutable field upgrade issues
+type: application
+version: 0.2.0
+appVersion: "2.0.0"

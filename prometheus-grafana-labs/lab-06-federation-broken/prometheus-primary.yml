@@ -1,0 +1,21 @@
+# Primary Prometheus - Federation Configuration (Broken)
+# This is the central Prometheus that scrapes from federated instances
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus-primary'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'federate'
+    # BUG: honor_labels should be true for federation to preserve original labels
+    honor_labels: false
+    metrics_path: '/federate'
+    params:
+      # BUG: Missing match[] params - federation endpoint requires at least one match[] param
+      # Should be: 'match[]': ['{job=~".+"}'] or specific matchers
+    static_configs:
+      - targets: ['prometheus-federated:9091']

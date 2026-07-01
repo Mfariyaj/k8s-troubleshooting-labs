@@ -1,0 +1,9 @@
+{
+  "name": "lab01-backend-app",
+  "version": "1.0.0",
+  "description": "Simple backend app for 502 Bad Gateway lab",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

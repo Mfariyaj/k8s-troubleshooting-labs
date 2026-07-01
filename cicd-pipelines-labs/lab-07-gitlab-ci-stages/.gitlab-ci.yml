@@ -1,0 +1,89 @@
+stages:
+  - deploy
+  - test
+  - build
+
+variables:
+  NODE_VERSION: "18"
+  DEPLOY_ENV: "production"
+
+build_app:
+  stage: build
+  image: node:${NODE_VERSION}
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 hour
+
+unit_tests:
+  stage: test
+  image: node:${NODE_VERSION}
+  needs:
+    - build_application
+  script:
+    - npm ci
+    - npm run test:unit
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: always
+
+integration_tests:
+  stage: test
+  image: node:${NODE_VERSION}
+  needs:
+    - build_app
+  script:
+    - ls -la dist/
+    - npm run test:integration
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+
+lint:
+  stage: test
+  image: node:${NODE_VERSION}
+  script:
+    - npm ci
+    - npm run lint
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: never
+
+deploy_staging:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    - unit_tests
+    - integration_tests
+  script:
+    - echo "Deploying to staging..."
+    - ./deploy.sh staging
+  environment:
+    name: staging
+    url: https://staging.example.com
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+deploy_production:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    - deploy_staging
+  script:
+    - echo "Deploying to production..."
+    - ./deploy.sh production
+  environment:
+    name: production
+    url: https://app.example.com
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual

@@ -1,0 +1,32 @@
+// BROKEN: Shared library name doesn't match configured library
+// Actual configured name is 'my-shared-lib' but pipeline references 'wrong-name'
+@Library('wrong-name') _
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    // Calling a function from the shared library
+                    buildHelper.buildApp('my-service')
+                }
+            }
+        }
+        stage('Test') {
+            steps {
+                script {
+                    buildHelper.runTests('my-service')
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    buildHelper.deploy('my-service', 'production')
+                }
+            }
+        }
+    }
+}

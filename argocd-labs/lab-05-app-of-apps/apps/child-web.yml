@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: child-web
+  namespace: argocd
+spec:
+  # BUG: Using 'restricted' project which doesn't permit this destination
+  project: restricted
+  source:
+    repoURL: https://github.com/example-org/gitops-apps.git
+    targetRevision: HEAD
+    path: services/web
+  destination:
+    server: https://kubernetes.default.svc
+    # BUG: 'web-ns' not permitted in project
+    namespace: web-ns
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

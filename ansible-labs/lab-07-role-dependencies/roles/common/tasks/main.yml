@@ -1,0 +1,18 @@
+---
+# roles/common/tasks/main.yml
+- name: Install common packages
+  ansible.builtin.debug:
+    msg: "Installing packages: {{ common_packages | default(['curl', 'wget', 'vim']) }}"
+
+- name: Configure system settings
+  ansible.builtin.copy:
+    content: |
+      # Common system configuration
+      LANG=en_US.UTF-8
+      TZ=UTC
+    dest: /tmp/common_sysconfig
+    mode: '0644'
+
+- name: Setup logging
+  ansible.builtin.debug:
+    msg: "Common logging configured"

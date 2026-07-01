@@ -1,0 +1,9 @@
+{
+  "name": "lab04-proxy-headers-app",
+  "version": "1.0.0",
+  "description": "App that checks proxy headers",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

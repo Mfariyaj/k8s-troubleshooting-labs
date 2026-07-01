@@ -1,0 +1,45 @@
+// BROKEN: Parallel stages write to the same file without separate workspaces
+// This causes race conditions and file corruption
+pipeline {
+    agent any
+
+    stages {
+        stage('Parallel Tests') {
+            parallel {
+                stage('Unit Tests') {
+                    steps {
+                        // BUG: No ws() block - shares workspace with other parallel stages
+                        sh 'echo "UNIT TEST RESULTS" > test-results.txt'
+                        sh 'sleep 2'
+                        sh 'echo "unit: PASS" >> test-results.txt'
+                        sh 'cat test-results.txt'
+                    }
+                }
+                stage('Integration Tests') {
+                    steps {
+                        // BUG: Same file written by both stages simultaneously
+                        sh 'echo "INTEGRATION TEST RESULTS" > test-results.txt'
+                        sh 'sleep 1'
+                        sh 'echo "integration: PASS" >> test-results.txt'
+                        sh 'cat test-results.txt'
+                    }
+                }
+                stage('E2E Tests') {
+                    steps {
+                        // BUG: All three stages clobbering each other's output
+                        sh 'echo "E2E TEST RESULTS" > test-results.txt'
+                        sh 'sleep 3'
+                        sh 'echo "e2e: PASS" >> test-results.txt'
+                        sh 'cat test-results.txt'
+                    }
+                }
+            }
+        }
+        stage('Report') {
+            steps {
+                // This will show corrupted/incomplete results
+                sh 'echo "Final report:"; cat test-results.txt'
+            }
+        }
+    }
+}

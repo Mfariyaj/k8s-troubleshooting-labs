@@ -1,0 +1,28 @@
+worker_processes {{ worker_processes }};
+
+events {
+    worker_connections {{ max_worker_connections }};
+}
+
+http {
+    upstream backend {
+        {% for server in upstream_servers %}
+        server {{ server.host }}:{{ server.port }} weight={{ server.weight }};
+    }
+
+    server {
+        listen {{ listen_port }};
+        server_name {{ server_name }};
+
+        location / {
+            proxy_pass http://backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /static {
+            alias {{ static_files_path }};
+            expires 30d;
+        }
+    }
+}

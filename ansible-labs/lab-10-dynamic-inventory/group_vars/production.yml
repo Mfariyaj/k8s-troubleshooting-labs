@@ -1,0 +1,6 @@
+---
+# group_vars/production.yml
+deploy_version: "3.0.1"
+max_instances: 5
+health_check_url: "http://localhost:8080/health"
+log_level: WARNING

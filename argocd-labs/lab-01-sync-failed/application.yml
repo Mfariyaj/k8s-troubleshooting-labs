@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: broken-sync-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example-org/microservices.git
+    targetRevision: HEAD
+    # BUG: This path does not exist in the repository
+    # The actual manifests are in k8s/manifests/production
+    path: deploy/manifests/production
+  destination:
+    server: https://kubernetes.default.svc
+    # BUG: This namespace does not exist in the cluster
+    namespace: production-app
+  syncPolicy:
+    # BUG: automated sync with selfHeal and prune disabled creates inconsistency
+    automated:
+      selfHeal: false
+      prune: false
+    syncOptions:
+      - CreateNamespace=false
+      - Validate=true

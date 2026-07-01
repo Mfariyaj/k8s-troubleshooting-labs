@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: multi-cluster-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example-org/apps.git
+    targetRevision: HEAD
+    path: apps/production
+  destination:
+    # BUG: Wrong port - actual cluster is on 443, not 6443
+    server: https://prod-cluster.example.com:6443
+    namespace: production
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

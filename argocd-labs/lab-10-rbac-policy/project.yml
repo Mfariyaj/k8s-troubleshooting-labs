@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: team-alpha
+  namespace: argocd
+spec:
+  description: "Team Alpha project"
+  sourceRepos:
+    - "https://github.com/team-alpha/services.git"
+  destinations:
+    - namespace: "team-alpha-ns"
+      server: "https://kubernetes.default.svc"
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  # BUG: Project role only allows 'get' action, not 'sync'
+  roles:
+    - name: team-alpha-deployer
+      description: "Team Alpha deployment role"
+      policies:
+        # BUG: Only 'get' is allowed at the project level too
+        - "p, proj:team-alpha:team-alpha-deployer, applications, get, team-alpha/*, allow"
+        # Missing: sync, action, override permissions
+      groups:
+        # BUG: Group name doesn't match what's in RBAC CM or what SSO sends
+        - "alpha-developers"

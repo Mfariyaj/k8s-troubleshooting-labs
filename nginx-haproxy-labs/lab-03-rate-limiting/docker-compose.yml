@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8083:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - lab03-network
+
+  app:
+    image: nginx:alpine
+    volumes:
+      - ./default.conf:/etc/nginx/conf.d/default.conf:ro
+    expose:
+      - "3000"
+    networks:
+      - lab03-network
+
+  # Simulates a health check client (load balancer)
+  healthcheck:
+    image: alpine:latest
+    command: >
+      sh -c "apk add --no-cache curl && while true; do
+        RESPONSE=$$(curl -s -o /dev/null -w '%{http_code}' http://nginx:80/health);
+        echo \"[Health Check] Status: $$RESPONSE - $$(date)\";
+        sleep 0.5;
+      done"
+    depends_on:
+      - nginx
+    networks:
+      - lab03-network
+
+networks:
+  lab03-network:
+    driver: bridge

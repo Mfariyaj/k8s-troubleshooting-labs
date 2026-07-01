@@ -1,0 +1,25 @@
+---
+- name: Deploy application with secrets
+  hosts: webservers
+  become: yes
+  vars_files:
+    - vault.yml
+  tasks:
+    - name: Display deployment info
+      debug:
+        msg: "Deploying as user {{ vault_deploy_user }}"
+
+    - name: Create database configuration
+      template:
+        content: |
+          DB_HOST={{ vault_db_host }}
+          DB_USER={{ vault_db_user }}
+          DB_PASS={{ vault_db_password }}
+          DB_NAME={{ vault_db_name }}
+        dest: /opt/app/.env
+        mode: '0600'
+
+    - name: Ensure application service is running
+      service:
+        name: myapp
+        state: started

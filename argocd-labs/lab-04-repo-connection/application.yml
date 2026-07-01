@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: repo-broken-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # BUG: This is an HTTPS URL but the secret provides SSH credentials
+    repoURL: https://gitlab.internal.company.com/platform/services.git
+    targetRevision: main
+    path: deploy/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: repo-app-ns
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

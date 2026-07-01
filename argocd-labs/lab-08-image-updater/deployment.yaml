@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-auto-update
+  namespace: image-updater-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-auto-update
+  template:
+    metadata:
+      labels:
+        app: nginx-auto-update
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.19.0
+          ports:
+            - containerPort: 80

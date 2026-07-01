@@ -1,0 +1,31 @@
+# Broken Remote Write Configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+remote_write:
+  - url: 'http://thanos-receive:19291/api/v1/receive'
+    # BUG: Authorization header uses wrong prefix 'Token' instead of 'Bearer'
+    headers:
+      Authorization: 'Token my-secret-write-token'
+    # BUG: queue_config capacity of 10 is extremely small (default is 2500)
+    # This causes immediate sample drops under any load
+    queue_config:
+      capacity: 10
+      max_shards: 1
+      min_shards: 1
+      max_samples_per_send: 5
+      batch_send_deadline: 5s
+    # Very aggressive retry to make the problem more visible
+    metadata_config:
+      send: true
+      send_interval: 1m

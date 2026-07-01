@@ -1,0 +1,19 @@
+# Virtual Host Configuration
+# BUG: Loop uses 'vhosts' but variable is defined as 'virtual_hosts'
+{% for vhost in vhosts %}
+server {
+    listen {{ vhost.port }};
+    server_name {{ vhost.name }};
+
+    {% if vhost.ssl %}
+    listen 443 ssl;
+    ssl_certificate /etc/ssl/certs/{{ vhost.name }}.crt;
+    ssl_certificate_key /etc/ssl/private/{{ vhost.name }}.key;
+    # BUG: Missing {% endif %} here!
+
+    location / {
+        proxy_pass http://{{ vhost.upstream }};
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+{% endfor %}

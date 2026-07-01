@@ -1,0 +1,7 @@
+---
+# Role vars (high precedence - overrides group_vars and host_vars!)
+http_port: 443
+app_env: production-locked
+max_connections: 500
+app_name: production-app
+log_level: error

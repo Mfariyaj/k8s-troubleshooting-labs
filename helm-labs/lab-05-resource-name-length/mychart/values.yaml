@@ -1,0 +1,14 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.23"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+# fullnameOverride is NOT set, so the generated name will be:
+# <release-name>-my-super-long-application-chart-name-that-exceeds-kubernetes-limits
+# which exceeds the 63-character DNS label limit

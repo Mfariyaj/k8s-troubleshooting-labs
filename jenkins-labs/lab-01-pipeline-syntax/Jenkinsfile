@@ -1,0 +1,31 @@
+// BROKEN: Multiple syntax errors in declarative pipeline
+// 1. Missing closing brace on stages
+// 2. 'def' used inside declarative pipeline (not allowed)
+// 3. 'stages' block placed outside 'pipeline' block
+
+stages {
+    stage('Build') {
+        steps {
+            echo 'Building...'
+        }
+    }
+}
+
+pipeline {
+    agent any
+
+    stage('Test') {
+        steps {
+            def testResult = sh(script: 'echo "running tests"', returnStdout: true)
+            echo "Result: ${testResult}"
+        }
+    }
+
+    stages {
+        stage('Deploy') {
+            steps {
+                echo 'Deploying...'
+            }
+        }
+    
+}

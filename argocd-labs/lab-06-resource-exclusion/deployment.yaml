@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-with-cfg
+  namespace: resource-exclusion-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-with-cfg
+  template:
+    metadata:
+      labels:
+        app: nginx-with-cfg
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.21
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: app-config

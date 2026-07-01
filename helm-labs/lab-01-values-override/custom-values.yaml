@@ -1,0 +1,6 @@
+# Custom values file - sets replicas to 3
+replicaCount: 3
+
+image:
+  repository: nginx
+  tag: "1.23"

@@ -1,0 +1,124 @@
+name: Progressive Deployment
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build application
+        run: |
+          npm ci
+          npm run build
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build
+          path: dist/
+
+  deploy-canary:
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment:
+      name: production
+      url: https://canary.example.com
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: app-build
+      - name: Deploy canary (10%)
+        run: |
+          echo "Deploying canary with 10% traffic..."
+          kubectl set image deployment/app app=myapp:${{ github.sha }} --namespace=canary
+          kubectl scale deployment/app --replicas=1 --namespace=canary
+
+  health-check:
+    runs-on: ubuntu-latest
+    needs: [deploy-canary]
+    steps:
+      - name: Wait for rollout
+        run: sleep 30
+
+      - name: Check canary health
+        run: |
+          for i in $(seq 1 5); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health)
+            if [ "$STATUS" != "200" ]; then
+              echo "Health check failed! Status: $STATUS"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "Canary is healthy!"
+
+  deploy-full:
+    runs-on: ubuntu-latest
+    needs: [health-check]
+    environment:
+      name: production
+      url: https://app.example.com
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: app-build
+      - name: Deploy full (100%)
+        run: |
+          echo "Rolling out to 100%..."
+          kubectl set image deployment/app app=myapp:${{ github.sha }} --namespace=production
+          kubectl rollout status deployment/app --namespace=production --timeout=300s
+
+  rollback:
+    runs-on: ubuntu-latest
+    needs: [deploy-full]
+    if: ${{ failure() }}
+    steps:
+      - name: Rollback deployment
+        run: |
+          echo "Rolling back..."
+          kubectl rollout undo deployment/app --namespace=production
+          kubectl rollout status deployment/app --namespace=production
+
+  post-deploy-verification:
+    runs-on: ubuntu-latest
+    needs: [deploy-full]
+    if: ${{ success() }}
+    steps:
+      - name: Verify production
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://internal-service:3000/api/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "Production verification failed!"
+            exit 1
+          fi
+
+      - name: Run smoke tests
+        run: |
+          npm run test:smoke -- --url http://internal-service:3000
+
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: [deploy-canary, health-check, deploy-full]
+    if: failure()
+    steps:
+      - name: Notify on failure
+        run: |
+          echo "Deployment failed! Sending alert..."
+          curl -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"text":"🚨 Production deployment FAILED for ${{ github.sha }}"}'

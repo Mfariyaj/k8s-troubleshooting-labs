@@ -1,0 +1,33 @@
+// BROKEN: Artifact archiving with wrong glob pattern and oversized stash
+pipeline {
+    agent any
+
+    stages {
+        stage('Build') {
+            steps {
+                sh '''
+                    mkdir -p build/output
+                    echo "compiled binary" > build/output/app.jar
+                    echo "build metadata" > build/output/build-info.json
+                    # Generate a large file that will exceed stash limits
+                    dd if=/dev/urandom of=build/output/large-asset.bin bs=1M count=500
+                '''
+            }
+        }
+        stage('Archive') {
+            steps {
+                // BUG: Wrong glob pattern - looking in wrong directory
+                archiveArtifacts artifacts: 'dist/**/*.jar', fingerprint: true
+
+                // BUG: Stashing 500MB+ will exceed default stash size limit
+                stash includes: 'build/output/**', name: 'build-artifacts'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                unstash 'build-artifacts'
+                sh 'echo "Deploying app.jar..."'
+            }
+        }
+    }
+}

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # NOTE: Service name is 'prometheus-server', not 'prometheus'
+  prometheus-server:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus-lab04
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: grafana-lab04
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./grafana.ini:/etc/grafana/grafana.ini
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus-server
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge

@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: lab08-java
+    ports:
+      - "8080:8080"
+    # BUG: Container memory limit (256MB) is LESS than JVM heap size (512MB)
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    # For older docker-compose versions:
+    mem_limit: 256m
+    memswap_limit: 256m
