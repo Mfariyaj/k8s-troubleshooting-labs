@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  namespace: lab-35-observability
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+      annotations:
+        # BUG: Prometheus scrape annotations missing/wrong
+        prometheus.io/scrape: "false"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+      - name: web-app
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  namespace: lab-35-observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-generator
+  template:
+    metadata:
+      labels:
+        app: traffic-generator
+    spec:
+      containers:
+      - name: generator
+        image: curlimages/curl:8.4.0
+        command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app
+  namespace: lab-35-observability
+spec:
+  selector:
+    app: web-app
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+# BUG: Telemetry resource disabling metrics and setting tracing to 0
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: mesh-telemetry
+  namespace: lab-35-observability
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    - disabled: true
+      match:
+        metric: ALL_METRICS
+        mode: CLIENT_AND_SERVER
+  tracing:
+  - providers:
+    - name: zipkin
+    # BUG: 0% sampling means no traces are collected
+    randomSamplingPercentage: 0
+---
+# BUG: ServiceMonitor with wrong selector and port
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: envoy-stats-monitor
+  namespace: lab-35-observability
+  labels:
+    monitoring: istio-proxies
+spec:
+  selector:
+    matchLabels:
+      # BUG: Wrong label - should match 'app: web-app'
+      app: wrong-app-label
+  endpoints:
+  - port: http-envoy-prom
+    # BUG: Wrong path - should be /stats/prometheus
+    path: /metrics
+    interval: 15s
+  namespaceSelector:
+    matchNames:
+    - lab-35-observability
+---
+# BUG: ConfigMap simulating wrong Kiali external_services URLs
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kiali-config
+  namespace: lab-35-observability
+data:
+  config.yaml: |
+    external_services:
+      prometheus:
+        # BUG: Wrong URL for Prometheus
+        url: http://prometheus-wrong.monitoring.svc.cluster.local:9090
+      tracing:
+        # BUG: Wrong URL for Jaeger
+        url: http://jaeger-wrong.tracing.svc.cluster.local:16686
+        in_cluster_url: http://jaeger-wrong.tracing.svc.cluster.local:16685
+    server:
+      metrics_enabled: true
+      metrics_port: 9090
+---
+# BUG: meshConfig simulation - accessLogFile is empty (no access logs)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-mesh-config
+  namespace: lab-35-observability
+data:
+  mesh: |
+    accessLogFile: ""
+    accessLogEncoding: TEXT
+    defaultConfig:
+      tracing:
+        sampling: 0
+      holdApplicationUntilProxyStarts: true
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY

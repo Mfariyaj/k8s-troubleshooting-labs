@@ -1,6 +1,6 @@
 # 🔧 DevOps Troubleshooting Labs
 
-## 170+ Real-World Broken Scenarios for DevOps Engineers
+## 185+ Real-World Broken Scenarios for DevOps Engineers
 
 ---
 
@@ -16,7 +16,7 @@ Whether it's a crashing Kubernetes pod, a failing Terraform plan, a misconfigure
 
 | # | Category | Labs | Directory | Status |
 |---|----------|------|-----------|--------|
-| 01 | Kubernetes | 20 | `kubernetes-labs/` | ✅ Available |
+| 01 | Kubernetes & Istio | 35 | `kubernetes-labs/` | ✅ Available |
 | 02 | Terraform | 15 | `terraform-labs/` | ✅ Available |
 | 03 | Docker | 15 | `docker-labs/` | ✅ Available |
 | 04 | Ansible | 15 | `ansible-labs/` | ✅ Available |
@@ -28,7 +28,7 @@ Whether it's a crashing Kubernetes pod, a failing Terraform plan, a misconfigure
 | 10 | Nginx/HAProxy | 15 | `nginx-haproxy-labs/` | ✅ Available |
 | 11 | CI/CD Pipelines | 15 | `cicd-pipelines-labs/` | ✅ Available |
 
-**Total: 170 labs across 11 categories**
+**Total: 185 labs across 11 categories**
 
 ---
 
@@ -130,7 +130,7 @@ Track your completion across all categories:
 
 | Category | Completed | Total | Progress |
 |----------|-----------|-------|----------|
-| ☐ Kubernetes | _ /20 | 20 | ░░░░░░░░░░ |
+| ☐ Kubernetes & Istio | _ /35 | 35 | ░░░░░░░░░░ |
 | ☐ Terraform | _ /15 | 15 | ░░░░░░░░░░ |
 | ☐ Docker | _ /15 | 15 | ░░░░░░░░░░ |
 | ☐ Ansible | _ /15 | 15 | ░░░░░░░░░░ |

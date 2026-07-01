@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-sa
+  namespace: lab-30-authz
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend-sa
+  namespace: lab-30-authz
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-sa
+  namespace: lab-30-authz
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: lab-30-authz
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      serviceAccountName: frontend-sa
+      containers:
+      - name: frontend
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+  namespace: lab-30-authz
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api
+    spec:
+      serviceAccountName: backend-sa
+      containers:
+      - name: backend-api
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-service
+  namespace: lab-30-authz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-service
+  template:
+    metadata:
+      labels:
+        app: admin-service
+    spec:
+      serviceAccountName: admin-sa
+      containers:
+      - name: admin
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: lab-30-authz
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+  namespace: lab-30-authz
+spec:
+  selector:
+    app: backend-api
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-service
+  namespace: lab-30-authz
+spec:
+  selector:
+    app: admin-service
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+# BUG: Namespace-level DENY that's too broad - overrides workload ALLOW
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: lab-30-authz
+spec:
+  # No selector = applies to all workloads in namespace
+  action: DENY
+  rules:
+  - from:
+    - source:
+        # BUG: Wrong principal format - missing 'spiffe://' prefix
+        # Should be: cluster.local/ns/default/sa/unknown
+        principals: ["unknown-sa"]
+    to:
+    # BUG: Empty 'to' in a DENY rule with empty operations matches everything
+    - {}
+---
+# ALLOW policy for frontend -> backend
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: lab-30-authz
+spec:
+  selector:
+    matchLabels:
+      # BUG: Selector doesn't match backend-api pods
+      # Pods have 'app: backend-api' but this targets 'app: backend'
+      app: backend
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        # BUG: Wrong principal format - not using SPIFFE format
+        # Should be: cluster.local/ns/lab-30-authz/sa/frontend-sa
+        principals: ["frontend-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/*"]

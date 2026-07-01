@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: lab-28-timeout
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+      - name: order-service
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: lab-28-timeout
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+      - name: payment-service
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: lab-28-timeout
+spec:
+  selector:
+    app: order-service
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: lab-28-timeout
+spec:
+  selector:
+    app: payment-service
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-vs
+  namespace: lab-28-timeout
+spec:
+  hosts:
+  - payment-service
+  http:
+  - route:
+    - destination:
+        host: payment-service
+    # BUG: Overall timeout is 2s but retry budget far exceeds it
+    # 5 retries * 3s perTryTimeout = 15s total retry budget
+    timeout: 2s
+    retries:
+      attempts: 5
+      perTryTimeout: 3s
+      # BUG: retryOn includes non-retriable error codes (400 = bad request, 401 = unauthorized)
+      retryOn: 5xx,retriable-4xx,400,401,reset,connect-failure
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: order-service-vs
+  namespace: lab-28-timeout
+spec:
+  hosts:
+  - order-service
+  http:
+  - match:
+    - method:
+        # BUG: Retrying POST requests which are not idempotent
+        # This can cause duplicate orders
+        exact: POST
+    route:
+    - destination:
+        host: order-service
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: 5xx,reset,connect-failure
+  - route:
+    - destination:
+        host: order-service
+    timeout: 5s
+    retries:
+      attempts: 2
+      perTryTimeout: 2s
+      retryOn: 5xx

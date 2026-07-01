@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-app
+  namespace: lab-27-gateway-tls
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: secure-app
+  template:
+    metadata:
+      labels:
+        app: secure-app
+    spec:
+      containers:
+      - name: secure-app
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: secure-app
+  namespace: lab-27-gateway-tls
+spec:
+  selector:
+    app: secure-app
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+# BUG: Secret in wrong namespace - should be in istio-system for ingress gateway
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secure-app-tls-cert
+  namespace: lab-27-gateway-tls
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNwRENDQVl3Q0NRQ0xxZ0l6T0pyYjlUQU5CZ2txaGtpRzl3MEJBUXNGQURBVU1SSXdFQVlEVlFRRERBbHMKYjJOaGJHaHZjM1F3SGhjTk1qTXhNakUxTVRZeU1ESXhXaGNOTWpReE1qRTBNVFl5TURJeFdqQVVNUkl3RUFZRApWUVFEREFsc2IyTmhiR2h2YzNRd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUUMKN3p6example
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRQzc3enpleGFtcGxlCg==
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: secure-gateway
+  namespace: lab-27-gateway-tls
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      # BUG: credentialName references non-existent secret name
+      credentialName: tls-secret-missing
+    hosts:
+    # BUG: Host doesn't match VirtualService hosts
+    - "secure.example.com"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: secure-app-vs
+  namespace: lab-27-gateway-tls
+spec:
+  hosts:
+  # BUG: Host doesn't match Gateway hosts
+  - "app.example.com"
+  gateways:
+  - secure-gateway
+  http:
+  - route:
+    - destination:
+        host: secure-app
+        port:
+          number: 80

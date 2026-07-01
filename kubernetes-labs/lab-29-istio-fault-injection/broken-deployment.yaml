@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  namespace: lab-29-fault-injection
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: catalog-service
+  template:
+    metadata:
+      labels:
+        app: catalog-service
+    spec:
+      containers:
+      - name: catalog-service
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-client
+  namespace: lab-29-fault-injection
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog-client
+  template:
+    metadata:
+      labels:
+        app: catalog-client
+    spec:
+      containers:
+      - name: client
+        image: curlimages/curl:8.4.0
+        command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-service
+  namespace: lab-29-fault-injection
+spec:
+  selector:
+    app: catalog-service
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: catalog-fault-injection
+  namespace: lab-29-fault-injection
+spec:
+  hosts:
+  - catalog-service
+  http:
+  # BUG: Fault applied to catch-all route (no match), affecting ALL traffic
+  - fault:
+      delay:
+        # BUG: fixedDelay missing time unit suffix - should be '5s'
+        fixedDelay: "5"
+        percentage:
+          value: 50.0
+      abort:
+        httpStatus: 500
+        percentage:
+          # BUG: percentage > 100 is invalid
+          value: 150.0
+    route:
+    - destination:
+        host: catalog-service
+  - match:
+    - headers:
+        # BUG: Header name doesn't match what test client sends
+        # Client sends 'x-test-user' but this matches 'x-chaos-test'
+        x-chaos-test:
+          exact: "true"
+    route:
+    - destination:
+        host: catalog-service

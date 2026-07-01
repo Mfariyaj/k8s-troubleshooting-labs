@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-blue
+  namespace: lab-24-bluegreen
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontend
+      color: blue
+  template:
+    metadata:
+      labels:
+        app: frontend
+        color: blue
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-green
+  namespace: lab-24-bluegreen
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontend
+      color: green
+  template:
+    metadata:
+      labels:
+        app: frontend
+        color: green
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: lab-24-bluegreen
+spec:
+  selector:
+    # BUG: Selector too broad - matches both blue and green pods
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: frontend-bluegreen
+  namespace: lab-24-bluegreen
+spec:
+  hosts:
+  - frontend
+  http:
+  - route:
+    - destination:
+        host: frontend
+        # BUG: Still points to 'blue' instead of 'green' for the switch
+        subset: blue
+      weight: 100
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: frontend-destinationrule
+  namespace: lab-24-bluegreen
+spec:
+  host: frontend
+  subsets:
+  - name: blue
+    labels:
+      color: blue
+  - name: green
+    labels:
+      # BUG: Wrong label - 'colour: green' instead of 'color: green'
+      colour: green

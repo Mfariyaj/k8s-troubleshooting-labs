@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-v1
+  namespace: lab-32-mirroring
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: user-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: user-service
+        version: v1
+    spec:
+      containers:
+      - name: user-service
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-v2
+  namespace: lab-32-mirroring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: user-service
+        version: v2
+    spec:
+      containers:
+      - name: user-service
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-client
+  namespace: lab-32-mirroring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-client
+  template:
+    metadata:
+      labels:
+        app: traffic-client
+    spec:
+      containers:
+      - name: client
+        image: curlimages/curl:8.4.0
+        command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: lab-32-mirroring
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-mirror
+  namespace: lab-32-mirroring
+spec:
+  hosts:
+  - user-service
+  http:
+  - route:
+    - destination:
+        host: user-service
+        subset: v1
+      weight: 100
+    # BUG: mirror references wrong host name
+    mirror:
+      host: user-svc-v2
+      # BUG: subset 'canary' is undefined in DestinationRule
+      subset: canary
+    # BUG: mirrorPercentage value is string instead of number
+    mirrorPercentage:
+      value: "100"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: user-service-dr
+  namespace: lab-32-mirroring
+spec:
+  host: user-service
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+  # Note: no 'canary' subset defined

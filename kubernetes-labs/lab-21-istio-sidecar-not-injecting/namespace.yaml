@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-21-sidecar
+  labels:
+    # BUG: Missing istio-injection=enabled label
+    app: sidecar-lab

@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: lab-25-circuitbreaker
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+      - name: payment-service
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service-unhealthy
+  namespace: lab-25-circuitbreaker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+      health: unhealthy
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        health: unhealthy
+    spec:
+      containers:
+      - name: payment-service
+        # This returns 500 errors (simulated by wrong config)
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: lab-25-circuitbreaker
+spec:
+  selector:
+    app: payment-service
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-client
+  namespace: lab-25-circuitbreaker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-client
+  template:
+    metadata:
+      labels:
+        app: payment-client
+    spec:
+      containers:
+      - name: client
+        image: curlimages/curl:8.4.0
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payment-service-circuit-breaker
+  namespace: lab-25-circuitbreaker
+spec:
+  host: payment-service
+  trafficPolicy:
+    outlierDetection:
+      # BUG: consecutiveErrors too high - needs 1000 errors before ejection
+      consecutive5xxErrors: 1000
+      # BUG: interval too long - checks only every 5 minutes
+      interval: 300s
+      # BUG: baseEjectionTime too short - only ejected for 1 second
+      baseEjectionTime: 1s
+      # BUG: maxEjectionPercent is 0, which means no hosts can be ejected
+      maxEjectionPercent: 0

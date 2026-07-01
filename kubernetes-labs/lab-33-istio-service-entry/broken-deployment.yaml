@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-service
+  namespace: lab-33-serviceentry
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: app-service
+  template:
+    metadata:
+      labels:
+        app: app-service
+    spec:
+      containers:
+      - name: app
+        image: curlimages/curl:8.4.0
+        command: ["sleep", "infinity"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+  namespace: lab-33-serviceentry
+spec:
+  selector:
+    app: app-service
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+# BUG: ServiceEntry with multiple misconfigurations for external API
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-api
+  namespace: lab-33-serviceentry
+spec:
+  hosts:
+  - api.external-service.com
+  # BUG: MESH_INTERNAL instead of MESH_EXTERNAL for external service
+  location: MESH_INTERNAL
+  ports:
+  - number: 443
+    name: https
+    # BUG: Protocol HTTP for port 443 - should be HTTPS or TLS
+    protocol: HTTP
+  # BUG: resolution DNS but no addresses/endpoints specified
+  # DNS resolution requires the host to be resolvable
+  resolution: DNS
+---
+# Sidecar configuration restricting outbound traffic
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default-sidecar
+  namespace: lab-33-serviceentry
+spec:
+  outboundTrafficPolicy:
+    # BUG: REGISTRY_ONLY blocks all traffic not in the service registry
+    # Combined with misconfigured ServiceEntry, external traffic is blocked
+    mode: REGISTRY_ONLY
+  egress:
+  - hosts:
+    - "./*"
+    - "istio-system/*"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: external-api-vs
+  namespace: lab-33-serviceentry
+spec:
+  hosts:
+  - api.external-service.com
+  http:
+  - route:
+    - destination:
+        host: api.external-service.com
+        port:
+          number: 443
+    timeout: 5s

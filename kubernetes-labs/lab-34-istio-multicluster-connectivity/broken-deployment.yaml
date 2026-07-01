@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-frontend
+  namespace: lab-34-multicluster
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: local-frontend
+  template:
+    metadata:
+      labels:
+        app: local-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:1.24
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: local-frontend
+  namespace: lab-34-multicluster
+spec:
+  selector:
+    app: local-frontend
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+---
+# ServiceEntry representing a service in the remote cluster (cluster-b)
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: remote-backend-cluster-b
+  namespace: lab-34-multicluster
+spec:
+  hosts:
+  - backend.production.svc.cluster.local
+  location: MESH_INTERNAL
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+  resolution: STATIC
+  endpoints:
+  - address: 10.10.10.1
+    ports:
+      # BUG: Wrong port number for the remote gateway (should be 15443)
+      http: 80
+    labels:
+      cluster: cluster-b
+    network: network-b
+---
+# DestinationRule for cross-cluster communication
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: remote-backend-dr
+  namespace: lab-34-multicluster
+spec:
+  host: backend.production.svc.cluster.local
+  trafficPolicy:
+    tls:
+      # BUG: Not using ISTIO_MUTUAL for cross-cluster mTLS
+      mode: DISABLE
+---
+# Gateway for receiving cross-cluster traffic
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: cross-cluster-gateway
+  namespace: lab-34-multicluster
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      # BUG: Wrong port - should be 15443 for cross-cluster auto-mTLS
+      number: 80
+      name: tls
+      protocol: TLS
+    tls:
+      mode: AUTO_PASSTHROUGH
+    hosts:
+    - "*.local"
+---
+# VirtualService for remote service routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: remote-backend-vs
+  namespace: lab-34-multicluster
+spec:
+  hosts:
+  - backend.production.svc.cluster.local
+  http:
+  - route:
+    - destination:
+        host: backend.production.svc.cluster.local
+        port:
+          number: 80
+    timeout: 10s
+    retries:
+      attempts: 2
+      perTryTimeout: 5s
