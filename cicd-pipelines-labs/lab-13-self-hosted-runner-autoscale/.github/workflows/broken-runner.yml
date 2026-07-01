@@ -1,0 +1,86 @@
+# BUG: runs-on uses "custom-runner" but ARC HRA labels the runners as "self-hosted"
+# This means jobs will never be picked up by the available runners.
+name: Build and Test on Self-Hosted Runner
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build Application
+    # BUG: Label mismatch! HRA registers runners with label "self-hosted"
+    # but this job requests "custom-runner" — jobs will queue forever
+    runs-on: custom-runner
+    container:
+      image: node:18-alpine
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+  docker-build:
+    name: Build Docker Image
+    needs: build
+    # BUG: Same label mismatch
+    runs-on: custom-runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        # BUG: Uses docker build but DinD is broken in runner config
+        # dockerdWithinRunnerContainer=true requires proper volume mounts
+        run: |
+          docker build -t myapp:${{ github.sha }} .
+          docker tag myapp:${{ github.sha }} myapp:latest
+
+      - name: Run security scan
+        run: |
+          docker run --rm aquasec/trivy:latest image myapp:${{ github.sha }}
+
+      - name: Push to registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+  integration-test:
+    name: Integration Tests
+    needs: docker-build
+    runs-on: custom-runner
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run integration tests
+        run: |
+          npm run test:integration
+        env:
+          DATABASE_URL: postgresql://postgres:testpass@postgres:5432/testdb
+
+  deploy:
+    name: Deploy to Staging
+    needs: integration-test
+    runs-on: custom-runner
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy
+        run: |
+          kubectl apply -f k8s/
+          kubectl rollout status deployment/myapp --timeout=120s

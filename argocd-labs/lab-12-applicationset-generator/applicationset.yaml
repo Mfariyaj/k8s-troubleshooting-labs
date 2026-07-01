@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-services-set
+  namespace: argocd
+spec:
+  # BUG 5: goTemplate enabled but uses a function (toUpper) that doesn't exist
+  # in Go's text/template — should use `upper` from sprig or remove the call
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          # BUG 1: Git generator is nested wrong — uses 'git' inside matrix
+          # but matrix generators should use the generator type directly.
+          # Also the directories path is wrong (apps/* vs services/*)
+          - git:
+              repoURL: https://git.example.com/platform/services.git
+              revision: HEAD
+              directories:
+                # BUG 2: Wrong path — actual repo structure is services/*/
+                # but this references apps/*/
+                - path: apps/*
+          # BUG 3: Generator type is 'cluster' (singular) but should be 'clusters' (plural)
+          - cluster:
+              selector:
+                matchLabels:
+                  # BUG 4: Label key mismatch — secrets have 'env' label
+                  # but selector looks for 'environment'
+                  environment: "production"
+              # This should also match staging but uses matchLabels (AND)
+              # instead of matchExpressions with In operator
+  template:
+    metadata:
+      # BUG 5: toUpper is not a valid Go template function
+      name: '{{.path.basename}}-{{.name | toUpper}}'
+      namespace: argocd
+      labels:
+        app.kubernetes.io/managed-by: applicationset-controller
+        cluster: '{{.name}}'
+        service: '{{.path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://git.example.com/platform/services.git
+        targetRevision: HEAD
+        path: '{{.path.path}}/overlays/{{.metadata.labels.environment}}'
+      destination:
+        server: '{{.server}}'
+        namespace: '{{.path.basename}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

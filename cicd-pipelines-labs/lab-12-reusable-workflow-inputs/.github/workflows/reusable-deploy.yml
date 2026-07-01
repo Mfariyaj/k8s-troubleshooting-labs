@@ -1,0 +1,108 @@
+# Reusable deployment workflow
+# Called by caller.yml with various inputs
+#
+# BUGS IN THIS FILE:
+# 1. Input run-migrations is type: string but caller passes boolean
+# 2. Job output not properly exposed at workflow level
+# 3. env context from caller not available (cluster-name will be empty)
+
+name: Reusable Deploy Workflow
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: string
+      image-tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+      # BUG: Defined as string but caller passes boolean `true` (unquoted)
+      # This causes a type validation error
+      run-migrations:
+        description: 'Whether to run database migrations'
+        required: false
+        type: string
+        default: "false"
+      cluster-name:
+        description: 'EKS cluster name'
+        required: true
+        type: string
+      timeout:
+        description: 'Deployment timeout in seconds'
+        required: false
+        type: string
+        default: "300"
+    # BUG: No secrets declared — when caller doesn't pass secrets: inherit,
+    # this workflow has NO access to any secrets
+    outputs:
+      deployed-image:
+        description: 'The image that was deployed'
+        # BUG: References job output but uses wrong syntax
+        # Should be: value: ${{ jobs.deploy.outputs.deployed-image }}
+        value: ${{ jobs.deploy.outputs.image }}
+      status:
+        description: 'Deployment status'
+        value: ${{ jobs.deploy.outputs.deploy-status }}
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      # BUG: Output name is "deployed-image" but the step sets "image" output
+      # The workflow-level output references "image" but step sets "deployed-image"
+      deployed-image: ${{ steps.deploy.outputs.deployed-image }}
+      deploy-status: ${{ steps.deploy.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Set kubeconfig
+        run: |
+          # This will fail because secrets aren't passed through
+          echo "${{ secrets.KUBECONFIG }}" > /tmp/kubeconfig
+          export KUBECONFIG=/tmp/kubeconfig
+
+      - name: Run migrations
+        if: inputs.run-migrations == 'true'
+        run: |
+          echo "Running database migrations..."
+          kubectl exec -it deploy/app -- ./manage.py migrate
+        env:
+          # BUG: env context from caller workflow is not available here
+          # ${{ env.CLUSTER_NAME }} will be empty
+          CLUSTER: ${{ inputs.cluster-name }}
+
+      - name: Deploy application
+        id: deploy
+        run: |
+          echo "Deploying ${{ inputs.image-tag }} to ${{ inputs.environment }}..."
+          kubectl set image deployment/app \
+            app=${{ inputs.image-tag }} \
+            --namespace=${{ inputs.environment }}
+          kubectl rollout status deployment/app \
+            --namespace=${{ inputs.environment }} \
+            --timeout=${{ inputs.timeout }}s
+
+          # Set outputs
+          echo "deployed-image=${{ inputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n ${{ inputs.environment }} -l app=app
+          echo "Health check passed for ${{ inputs.environment }}"
+
+      - name: Notify Slack
+        if: failure()
+        run: |
+          # This will fail because secrets aren't inherited
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"Deployment to ${{ inputs.environment }} FAILED"}' \
+            "${{ secrets.SLACK_WEBHOOK }}"

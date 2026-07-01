@@ -1,0 +1,104 @@
+---
+# Playbook that demonstrates fact cache poisoning
+# Expected: Each host gets its own fresh facts
+# Actual: Facts from one host appear on another due to cache key collision
+
+- name: Gather and validate host facts
+  hosts: all
+  # BUG: gather_facts not refreshing stale cache
+  # With fact_caching_timeout: 86400, old facts persist for 24 hours
+  gather_facts: true
+
+  tasks:
+    - name: Display hostname from facts
+      debug:
+        msg: "Host {{ inventory_hostname }} reports hostname as: {{ ansible_hostname | default('UNDEFINED') }}"
+
+    - name: Display OS information
+      debug:
+        msg: "{{ inventory_hostname }}: {{ ansible_distribution | default('UNKNOWN') }} {{ ansible_distribution_version | default('N/A') }}"
+
+    - name: Validate fact correctness
+      assert:
+        that:
+          - ansible_hostname is defined
+          - ansible_hostname == inventory_hostname.split('.')[0]
+        fail_msg: >
+          FACT CACHE POISONING DETECTED!
+          Host {{ inventory_hostname }} received facts for '{{ ansible_hostname }}'
+          instead of its own facts. The Redis fact cache is returning wrong data.
+        success_msg: "Facts verified correct for {{ inventory_hostname }}"
+      ignore_errors: true
+
+- name: Application deployment using cached facts
+  hosts: all
+  # BUG: This play does NOT re-gather facts, relies entirely on (poisoned) cache
+  gather_facts: false
+
+  vars:
+    deploy_dir: "/tmp/ansible-lab14/deploy"
+
+  tasks:
+    - name: Use cached facts for deployment
+      copy:
+        content: |
+          # Auto-generated configuration
+          # Host: {{ inventory_hostname }}
+          # OS: {{ ansible_distribution | default('UNKNOWN') }} {{ ansible_distribution_version | default('N/A') }}
+          # Architecture: {{ ansible_architecture | default('UNKNOWN') }}
+          # CPUs: {{ ansible_processor_vcpus | default('UNKNOWN') }}
+          # Memory: {{ ansible_memtotal_mb | default('UNKNOWN') }} MB
+          # Hostname from facts: {{ ansible_hostname | default('UNKNOWN') }}
+          
+          [deployment]
+          target_host = {{ inventory_hostname }}
+          fact_hostname = {{ ansible_hostname | default('UNKNOWN') }}
+          deploy_time = {{ now() }}
+        dest: "{{ deploy_dir }}/{{ inventory_hostname }}.conf"
+        mode: '0644'
+      delegate_to: localhost
+
+    - name: Verify fact consistency
+      shell: |
+        fact_host="{{ ansible_hostname | default('NONE') }}"
+        inventory_host="{{ inventory_hostname }}"
+        if [ "$fact_host" != "${inventory_host%%.*}" ]; then
+          echo "ERROR: Fact hostname ($fact_host) != inventory hostname ($inventory_host)"
+          echo "This indicates fact cache poisoning!"
+          exit 1
+        fi
+      delegate_to: localhost
+      register: consistency_check
+      ignore_errors: true
+
+    - name: Report poisoned hosts
+      debug:
+        msg: "⚠️  POISONED: {{ inventory_hostname }} has facts from {{ ansible_hostname | default('UNKNOWN') }}"
+      when: consistency_check is failed
+
+- name: Fact cache statistics
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Check Redis cache state
+      shell: |
+        echo "=== Redis Fact Cache Status ==="
+        redis-cli INFO keyspace 2>/dev/null || echo "Redis not available"
+        echo ""
+        echo "=== All cached fact keys ==="
+        redis-cli KEYS '*' 2>/dev/null || echo "Cannot list keys"
+        echo ""
+        echo "=== Key TTLs ==="
+        for key in $(redis-cli KEYS '*' 2>/dev/null); do
+          ttl=$(redis-cli TTL "$key" 2>/dev/null)
+          echo "  $key: TTL=$ttl seconds"
+        done
+      register: redis_status
+      ignore_errors: true
+
+    - name: Display cache status
+      debug:
+        var: redis_status.stdout_lines
+      when: redis_status is defined

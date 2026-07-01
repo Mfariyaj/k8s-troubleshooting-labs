@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.config.appPort }}
+          env:
+            - name: DB_HOST
+              value: {{ .Values.secrets.database.host | default "localhost" | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.secrets.database.password | default "" | quote }}
+            - name: API_KEY
+              value: {{ .Values.secrets.apiKey | default "" | quote }}
+            - name: JWT_SECRET
+              value: {{ .Values.secrets.jwtSecret | default "" | quote }}
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

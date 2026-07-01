@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus-thanos
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=2h'
+      - '--storage.tsdb.min-block-duration=2h'
+      - '--storage.tsdb.max-block-duration=2h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    ports:
+      - "9090:9090"
+    networks:
+      - thanos
+    restart: unless-stopped
+
+  thanos-sidecar:
+    image: quay.io/thanos/thanos:v0.34.1
+    container_name: thanos-sidecar
+    volumes:
+      - prometheus-data:/prometheus:ro
+      - ./thanos-bucket.yml:/etc/thanos/bucket.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - 'sidecar'
+      - '--tsdb.path=/prometheus'
+      - '--prometheus.url=http://prometheus:9090'
+      - '--objstore.config-file=/etc/thanos/bucket.yml'
+      # BUG: --min-time flag set to future date — blocks are never "old enough" to upload
+      - '--min-time=2099-01-01T00:00:00Z'
+      - '--grpc-address=0.0.0.0:10901'
+      - '--http-address=0.0.0.0:10902'
+    ports:
+      - "10901:10901"
+      - "10902:10902"
+    depends_on:
+      - prometheus
+      - minio
+    networks:
+      - thanos
+    restart: unless-stopped
+
+  thanos-compactor:
+    image: quay.io/thanos/thanos:v0.34.1
+    container_name: thanos-compactor
+    volumes:
+      - ./thanos-bucket.yml:/etc/thanos/bucket.yml
+      - compactor-data:/data
+    command:
+      - 'compact'
+      - '--data-dir=/data'
+      - '--objstore.config-file=/etc/thanos/bucket.yml'
+      - '--http-address=0.0.0.0:10912'
+      # BUG: Compactor is configured to upload AND compact — conflicts with sidecar
+      # Both try to manage the same blocks, causing duplicate block errors
+      - '--retention.resolution-raw=30d'
+      - '--retention.resolution-5m=60d'
+      - '--retention.resolution-1h=90d'
+      - '--wait'
+      - '--wait-interval=30s'
+    ports:
+      - "10912:10912"
+    depends_on:
+      - minio
+    networks:
+      - thanos
+    restart: unless-stopped
+
+  thanos-query:
+    image: quay.io/thanos/thanos:v0.34.1
+    container_name: thanos-query
+    command:
+      - 'query'
+      - '--http-address=0.0.0.0:9091'
+      - '--grpc-address=0.0.0.0:10903'
+      - '--store=thanos-sidecar:10901'
+      - '--store=thanos-store:10904'
+    ports:
+      - "9091:9091"
+    depends_on:
+      - thanos-sidecar
+    networks:
+      - thanos
+    restart: unless-stopped
+
+  thanos-store:
+    image: quay.io/thanos/thanos:v0.34.1
+    container_name: thanos-store
+    volumes:
+      - ./thanos-bucket.yml:/etc/thanos/bucket.yml
+      - store-data:/data
+    command:
+      - 'store'
+      - '--data-dir=/data'
+      - '--objstore.config-file=/etc/thanos/bucket.yml'
+      - '--http-address=0.0.0.0:10905'
+      - '--grpc-address=0.0.0.0:10904'
+    ports:
+      - "10904:10904"
+      - "10905:10905"
+    depends_on:
+      - minio
+    networks:
+      - thanos
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2024-03-15T01-07-19Z
+    container_name: thanos-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin-secret
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - thanos
+    # BUG: No bucket creation on startup — the "thanos-metrics" bucket doesn't exist
+    # MinIO starts with an empty state; bucket must be created manually or via mc
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: node-exporter-thanos
+    ports:
+      - "9100:9100"
+    networks:
+      - thanos
+
+volumes:
+  prometheus-data:
+  compactor-data:
+  store-data:
+  minio-data:
+
+networks:
+  thanos:
+    driver: bridge

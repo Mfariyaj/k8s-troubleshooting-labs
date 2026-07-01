@@ -1,0 +1,56 @@
+#!/bin/bash
+set -e
+
+LAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LAB_NAME="lab-15-container-runtime-shim"
+
+echo "============================================="
+echo "  Deploying: $LAB_NAME"
+echo "  Container Runtime Shim Death (Ghost Containers)"
+echo "============================================="
+echo ""
+echo "[!] WARNING: This lab causes OOM kills that may affect the host!"
+echo "[!] Monitor with: dmesg -w | grep -i oom"
+echo "[!] And: watch -n2 'ps aux | grep containerd-shim | wc -l'"
+echo ""
+
+cd "$LAB_DIR"
+
+echo "[1/2] Building memory-intensive application image..."
+docker compose build
+
+echo ""
+echo "[2/2] Starting containers with tight memory limits..."
+echo "      - memory-hog: 128MB limit, tries to allocate 200MB"
+echo "      - worker-a:   64MB limit, tries to allocate 100MB"
+echo "      - worker-b:   64MB limit, tries to allocate 150MB"
+echo ""
+docker compose up -d
+
+echo ""
+echo "============================================="
+echo "  Lab Deployed!"
+echo "============================================="
+echo ""
+echo "Within 30-60 seconds, containers will hit memory limits."
+echo "The kernel OOM killer may kill the containerd shim process."
+echo ""
+echo "Watch for ghost containers:"
+echo ""
+echo "  # Container shows 'Up' but is unresponsive:"
+echo "  docker ps"
+echo ""
+echo "  # docker exec will hang:"
+echo "  timeout 5 docker exec memory-hog echo alive"
+echo ""
+echo "  # docker top fails on 'running' container:"
+echo "  docker top memory-hog"
+echo ""
+echo "  # Check if shim exists:"
+echo "  ps aux | grep containerd-shim"
+echo ""
+echo "  # Check OOM kills:"
+echo "  dmesg | grep -i oom | tail -20"
+echo ""
+echo "Your task: Diagnose why containers appear running but are dead,"
+echo "           and implement proper fixes for shim protection."

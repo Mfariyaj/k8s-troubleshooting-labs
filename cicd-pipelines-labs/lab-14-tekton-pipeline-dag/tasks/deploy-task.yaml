@@ -1,0 +1,55 @@
+# kubectl deploy task
+# Note: "targets" param expects a string but pipeline passes an array
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kubectl-deploy
+  namespace: ci
+spec:
+  params:
+    - name: image
+      description: Container image to deploy
+      type: string
+    # This expects a simple string (comma-separated targets)
+    # but the Pipeline passes an array type, causing a mismatch
+    - name: targets
+      description: Deployment target (namespace)
+      type: string
+    - name: timeout
+      description: Rollout timeout
+      type: string
+      default: "300s"
+
+  workspaces:
+    - name: source
+      description: Source with k8s manifests
+
+  steps:
+    - name: apply-manifests
+      image: bitnami/kubectl:1.28
+      script: |
+        #!/bin/bash
+        set -e
+
+        echo "Deploying $(params.image) to $(params.targets)..."
+
+        # Update image in deployment manifests
+        cd $(workspaces.source.path)
+        sed -i "s|IMAGE_PLACEHOLDER|$(params.image)|g" k8s/deployment.yaml
+
+        # Apply manifests
+        kubectl apply -f k8s/ -n $(params.targets)
+
+        # Wait for rollout
+        kubectl rollout status deployment/app \
+          -n $(params.targets) \
+          --timeout=$(params.timeout)
+
+    - name: verify
+      image: curlimages/curl:8.4.0
+      script: |
+        #!/bin/sh
+        echo "Verifying deployment health..."
+        sleep 5
+        curl -sf http://app.$(params.targets).svc.cluster.local/health || exit 1
+        echo "Deployment healthy!"

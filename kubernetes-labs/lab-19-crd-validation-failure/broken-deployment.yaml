@@ -1,0 +1,193 @@
+---
+# Custom Resource Definition with intentional schema errors
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databaseclusters.platform.example.com
+  labels:
+    app: database-operator
+    lab: crd-validation-failure
+spec:
+  group: platform.example.com
+  names:
+    kind: DatabaseCluster
+    listKind: DatabaseClusterList
+    plural: databaseclusters
+    singular: databasecluster
+    shortNames:
+      - dbc
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - engine
+                # BUG: Field name is "storageclass" (lowercase) but CR uses "storageClass" (camelCase)
+                - storageclass
+                - replicas
+              properties:
+                engine:
+                  # BUG: type should be "string" not "integer" — enum values are strings
+                  type: integer
+                  description: "Database engine type"
+                  enum:
+                    # BUG: Uses "postgresql" but users commonly submit "postgres"
+                    - "postgresql"
+                    - "mysql"
+                    - "mariadb"
+                replicas:
+                  # BUG: type should be "integer" not "string"
+                  type: string
+                  description: "Number of database replicas"
+                  minimum: 1
+                  maximum: 7
+                version:
+                  type: string
+                  description: "Database engine version"
+                storageClass:
+                  type: string
+                  description: "Kubernetes storage class for persistent volumes"
+                storageSize:
+                  type: string
+                  description: "Storage size (e.g., 100Gi)"
+                  pattern: '^[0-9]+(Gi|Ti|Mi)$'
+                backup:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    schedule:
+                      type: string
+                      description: "Cron schedule for backups"
+                      # BUG: Pattern is too strict and doesn't match human-readable values like "daily"
+                      pattern: '^(\d+|\*)(/\d+)?(\s+(\d+|\*)(/\d+)?){4}$'
+                    retention:
+                      type: string
+                      description: "Backup retention period"
+                      pattern: '^[0-9]+(d|h)$'
+                  required:
+                    - enabled
+                    - schedule
+                highAvailability:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    syncMode:
+                      type: string
+                      enum:
+                        - "sync"
+                        - "async"
+                        - "semi-sync"
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                readyReplicas:
+                  type: integer
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+      additionalPrinterColumns:
+        - name: Engine
+          type: string
+          jsonPath: .spec.engine
+        - name: Replicas
+          type: integer
+          jsonPath: .spec.replicas
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+---
+# Broken Custom Resource Instance 1 — multiple validation failures
+apiVersion: platform.example.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: production-orders-db
+  namespace: lab-19-crd
+  labels:
+    team: orders
+    environment: production
+spec:
+  # BUG: "postgres" not in enum (should be "postgresql")
+  engine: "postgres"
+  # BUG: This is an integer but schema says type: string
+  replicas: 3
+  version: "15.4"
+  # BUG: Schema requires "storageclass" (lowercase) but this uses camelCase
+  storageClass: "gp3-encrypted"
+  storageSize: "100Gi"
+  backup:
+    enabled: true
+    # BUG: "daily" doesn't match the cron pattern
+    schedule: "daily"
+    retention: "30d"
+  highAvailability:
+    enabled: true
+    syncMode: "sync"
+---
+# Broken Custom Resource Instance 2 — different validation failures
+apiVersion: platform.example.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: staging-users-db
+  namespace: lab-19-crd
+  labels:
+    team: users
+    environment: staging
+spec:
+  # BUG: Same enum issue
+  engine: "postgres"
+  # BUG: Same type issue
+  replicas: 2
+  version: "15.4"
+  storageClass: "gp2-standard"
+  storageSize: "50Gi"
+  backup:
+    enabled: true
+    # BUG: "weekly" doesn't match cron pattern either
+    schedule: "weekly"
+    retention: "7d"
+  highAvailability:
+    enabled: false
+    syncMode: "async"
+---
+# Broken Custom Resource Instance 3 — missing required fields
+apiVersion: platform.example.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: dev-analytics-db
+  namespace: lab-19-crd
+  labels:
+    team: analytics
+    environment: dev
+spec:
+  engine: "mysql"
+  # Missing replicas (required)
+  version: "8.0"
+  storageClass: "standard"
+  # BUG: "500MB" doesn't match pattern '^[0-9]+(Gi|Ti|Mi)$'
+  storageSize: "500MB"
+  backup:
+    enabled: false
+    # Missing schedule but backup object requires it
+    retention: "3d"

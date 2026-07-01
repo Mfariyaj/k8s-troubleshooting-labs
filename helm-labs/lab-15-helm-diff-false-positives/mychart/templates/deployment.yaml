@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+  # NOTE: This template does NOT include annotations that controllers add:
+  # - deployment.kubernetes.io/revision (added by deployment controller)
+  # - kubectl.kubernetes.io/last-applied-configuration (added by kubectl/helm)
+  # These will show up as false positives in helm-diff
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      # NOTE: No annotations here — but live pods will have:
+      # - cni.projectcalico.org/podIPs (from Calico CNI)
+      # - sidecar.istio.io/status (from Istio injector)
+      # - prometheus.io/scrape (from monitoring webhook)
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          # Resources that VPA will mutate on the live object
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

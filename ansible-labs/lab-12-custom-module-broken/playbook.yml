@@ -1,0 +1,89 @@
+---
+# Playbook using custom_config module to manage application settings
+# Expected: Module creates/updates config files idempotently
+# Actual: Module fails with JSON parsing errors and idempotency issues
+
+- name: Configure application settings
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    app_config_dir: "/tmp/ansible-lab12/config"
+    db_settings:
+      database_host: "db.production.internal"
+      database_port: "5432"
+      database_name: "webapp_prod"
+      max_connections: "100"
+      ssl_mode: "require"
+    app_settings:
+      log_level: "WARNING"
+      debug_mode: "false"
+      cache_ttl: "3600"
+      max_workers: "8"
+      bind_address: "0.0.0.0:8080"
+
+  tasks:
+    - name: Ensure config directory exists
+      file:
+        path: "{{ app_config_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Deploy database configuration
+      custom_config:
+        path: "{{ app_config_dir }}/database.ini"
+        settings: "{{ db_settings }}"
+        format: ini
+        backup: true
+        validate: true
+      register: db_config_result
+
+    - name: Deploy application configuration
+      custom_config:
+        path: "{{ app_config_dir }}/application.ini"
+        settings: "{{ app_settings }}"
+        format: ini
+        backup: true
+        validate: true
+      register: app_config_result
+
+    - name: Deploy settings as JSON
+      custom_config:
+        path: "{{ app_config_dir }}/settings.json"
+        settings: "{{ db_settings }}"
+        format: json
+        backup: false
+        validate: true
+
+    - name: Verify idempotency - run database config again
+      custom_config:
+        path: "{{ app_config_dir }}/database.ini"
+        settings: "{{ db_settings }}"
+        format: ini
+        backup: true
+        validate: true
+      register: db_config_idem
+
+    - name: Check idempotency result
+      debug:
+        msg: "Idempotency check - changed: {{ db_config_idem.changed | default('MISSING') }}"
+
+    - name: Test check mode support
+      custom_config:
+        path: "{{ app_config_dir }}/test_check.ini"
+        settings:
+          test_key: "test_value"
+        format: ini
+        backup: false
+      check_mode: true
+      register: check_result
+
+    - name: Verify check mode didn't create file
+      stat:
+        path: "{{ app_config_dir }}/test_check.ini"
+      register: check_file
+
+    - name: Report check mode status
+      debug:
+        msg: "Check mode file exists: {{ check_file.stat.exists }} (should be false)"

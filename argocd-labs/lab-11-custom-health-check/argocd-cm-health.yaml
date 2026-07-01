@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # BUG 1: Wrong GVK key format — uses slash separator and includes version
+  # ArgoCD expects: databases.example.com_DatabaseCluster (Group_Kind)
+  # Written as: databases.example.com/v1alpha1_DatabaseCluster (wrong format)
+  #
+  # BUG 2: Lua return value uses capitalized field names (Status, Message)
+  # ArgoCD expects lowercase: status, message
+  #
+  # BUG 3: Lua script references obj.status.conditions but the actual CR uses
+  # obj.status.phase as the primary health indicator. The conditions array exists
+  # but is nested under obj.status.clusterStatus.conditions in this CRD
+  #
+  # BUG 4: Lua multiline string has a syntax error — `]]` appears in a comment
+  # inside the YAML block, breaking YAML parsing of the literal block scalar
+  resource.customizations.health.databases.example.com/v1alpha1_DatabaseCluster: |
+    hs = {}
+    -- Check health status of DatabaseCluster resource
+    -- Note: status fields are nested under conditions array ]]
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.Status = "Healthy"
+            hs.Message = "Database cluster is ready"
+            return hs
+          end
+        end
+      end
+    end
+    hs.Status = "Progressing"
+    hs.Message = "Waiting for database cluster to become ready"
+    return hs

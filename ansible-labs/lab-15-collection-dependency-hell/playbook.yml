@@ -1,0 +1,109 @@
+---
+# Playbook using modules from multiple Ansible collections
+# Expected: Modules from correct collection versions are loaded
+# Actual: Version conflicts cause wrong module versions or failures
+
+- name: Infrastructure provisioning with collections
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+    - community.general
+    - community.docker
+    - ansible.posix
+
+  vars:
+    app_name: "microservice-platform"
+    docker_network: "app-network"
+    config_dir: "/tmp/ansible-lab15/config"
+
+  tasks:
+    - name: Create configuration directory
+      file:
+        path: "{{ config_dir }}"
+        state: directory
+        mode: '0755'
+
+    # Uses community.general module
+    - name: Generate random password for service
+      community.general.random_string:
+        length: 32
+        min_lower: 8
+        min_upper: 8
+        min_numeric: 4
+        min_special: 4
+      register: service_password
+      # This module was added in community.general 3.2.0
+      # But requirements.yml constrains to <3.0.0
+
+    # Uses community.docker module
+    - name: Create Docker network
+      community.docker.docker_network:
+        name: "{{ docker_network }}"
+        state: present
+      ignore_errors: true
+      # Requires community.docker 2.0.0+ for network options
+      # But version constraint in requirements.yml forces 1.x
+
+    # Uses module that moved between collection versions
+    - name: Manage system service
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: true
+        state: present
+      ignore_errors: true
+      # ansible.posix module interface changed between versions
+
+    - name: Deploy application config using template
+      community.general.ini_file:
+        path: "{{ config_dir }}/app.ini"
+        section: database
+        option: connection_string
+        value: "postgresql://app:{{ service_password.string | default('GENERATION_FAILED') }}@db:5432/app"
+        mode: '0640'
+      # ini_file options changed between community.general versions
+
+    - name: Create Docker compose configuration
+      copy:
+        content: |
+          version: '3.8'
+          services:
+            app:
+              image: myapp:latest
+              networks:
+                - {{ docker_network }}
+              environment:
+                DB_PASSWORD: {{ service_password.string | default('FAILED') }}
+            db:
+              image: postgres:15
+              networks:
+                - {{ docker_network }}
+          networks:
+            {{ docker_network }}:
+              external: true
+        dest: "{{ config_dir }}/docker-compose.yml"
+        mode: '0644'
+
+    # Module that requires specific community.docker version
+    - name: Pull application image
+      community.docker.docker_image:
+        name: "nginx"
+        tag: "alpine"
+        source: pull
+      ignore_errors: true
+      # docker_image module interface differs between 1.x and 3.x
+
+    - name: Report collection versions
+      shell: |
+        echo "=== Installed Collection Versions ==="
+        ansible-galaxy collection list 2>/dev/null | grep -E "community\.(general|docker)|ansible\.posix" || true
+        echo ""
+        echo "=== Collection Paths ==="
+        ansible-config dump 2>/dev/null | grep COLLECTIONS_PATHS || true
+      register: collection_info
+
+    - name: Display collection info
+      debug:
+        var: collection_info.stdout_lines

@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - output.yaml
+
+patches:
+  - path: patches/resource-patch.yaml
+    target:
+      group: apps
+      version: v1beta1
+      kind: Deployment
+      name: myapp-deployment

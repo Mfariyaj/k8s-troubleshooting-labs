@@ -1,0 +1,91 @@
+# Flux Kustomization — deploys manifests from GitRepository
+#
+# BUGS:
+# 1. Path is wrong (repo was refactored from /deploy to /k8s/overlays/production)
+# 2. dependsOn references namespace "default" but HelmRelease is in "flux-system"
+# 3. Health checks reference deployments that take 10+ minutes to become ready
+#    but timeout is only 2 minutes
+# 4. sourceRef.name is correct but source isn't ready (blocked by gitrepository bug)
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-production
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+
+  # BUG: Path is wrong! The repo was refactored and manifests moved from
+  # /deploy to /k8s/overlays/production — this path no longer exists
+  # Flux will report: "kustomization path not found: stat /deploy: no such file or directory"
+  path: ./deploy
+
+  prune: true
+  wait: true
+
+  # BUG: timeout of 2m is too short for the application
+  # The app requires database migrations + rolling update which takes ~8 minutes
+  timeout: 2m
+
+  sourceRef:
+    kind: GitRepository
+    name: infra-repo
+    namespace: flux-system
+
+  # BUG: dependsOn references helmrelease in "default" namespace
+  # but the HelmRelease is actually in "flux-system" namespace
+  # This causes "dependency 'default/monitoring-stack' is not ready"
+  dependsOn:
+    - name: monitoring-stack
+      namespace: default
+
+  # Health checks with aggressive timeout
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: app-server
+      namespace: production
+    - apiVersion: apps/v1
+      kind: StatefulSet
+      name: app-database
+      namespace: production
+    - apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      name: app-ingress
+      namespace: production
+
+  # Patches for production
+  patches:
+    - patch: |
+        - op: replace
+          path: /spec/replicas
+          value: 3
+      target:
+        kind: Deployment
+        name: app-server
+
+  # Post-build variable substitution
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
+      - kind: Secret
+        name: cluster-secrets
+---
+# Second Kustomization that depends on the first (cascading failure)
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-monitoring
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./monitoring
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: infra-repo
+    namespace: flux-system
+  # This depends on app-production which is broken — cascading failure
+  dependsOn:
+    - name: app-production

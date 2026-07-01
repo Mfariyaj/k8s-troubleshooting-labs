@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  haproxy1:
+    image: haproxy:2.8-alpine
+    container_name: haproxy-peer1
+    hostname: haproxy1
+    ports:
+      - "8080:80"
+      - "8404:8404"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      haproxy-net:
+        ipv4_address: 172.25.0.10
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
+
+  haproxy2:
+    image: haproxy:2.8-alpine
+    container_name: haproxy-peer2
+    hostname: haproxy2
+    ports:
+      - "8081:80"
+      - "8405:8404"
+    volumes:
+      - ./haproxy2.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      haproxy-net:
+        ipv4_address: 172.25.0.11
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
+
+  backend1:
+    image: nginx:1.25-alpine
+    container_name: stick-backend1
+    volumes:
+      - ./backend1.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      haproxy-net:
+        ipv4_address: 172.25.0.20
+
+  backend2:
+    image: nginx:1.25-alpine
+    container_name: stick-backend2
+    volumes:
+      - ./backend2.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      haproxy-net:
+        ipv4_address: 172.25.0.21
+
+  backend3:
+    image: nginx:1.25-alpine
+    container_name: stick-backend3
+    volumes:
+      - ./backend3.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      haproxy-net:
+        ipv4_address: 172.25.0.22
+
+networks:
+  haproxy-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/24

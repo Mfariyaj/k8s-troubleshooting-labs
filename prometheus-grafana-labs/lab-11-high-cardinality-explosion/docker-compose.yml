@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus-cardinality
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      # BUG: No memory limits and no --storage.tsdb.no-lockfile
+      # BUG: TSDB head chunks will consume all available RAM
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    # BUG: Memory limit too low for the cardinality being ingested
+    # This will cause OOM kill
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
+    depends_on:
+      - metrics-app
+    networks:
+      - monitoring
+
+  metrics-app:
+    build: ./app
+    container_name: high-cardinality-app
+    ports:
+      - "8000:8000"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana-cardinality
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus-data:
+
+networks:
+  monitoring:
+    driver: bridge

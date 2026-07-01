@@ -1,0 +1,65 @@
+version: '3.8'
+
+# BUG: No log rotation configured at service level
+# BUG: No resource limits on logging
+# BUG: Volumes created but never cleaned up on restart
+# BUG: Multiple replicas all logging without rotation
+
+services:
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payment-service
+    restart: unless-stopped
+    # BUG: No logging configuration - inherits daemon defaults (json-file, no rotation)
+    # logging:
+    #   driver: "json-file"
+    #   options:
+    #     max-size: "10m"
+    #     max-file: "3"
+    volumes:
+      - payment-data:/app/data
+      - payment-temp:/tmp/processing
+      - /var/log/payment-service:/app/logs
+    environment:
+      - LOG_LEVEL=DEBUG
+      - ENABLE_REQUEST_LOGGING=true
+      - ENABLE_RESPONSE_BODY_LOGGING=true
+
+  audit-logger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: audit-logger
+    restart: unless-stopped
+    # BUG: Same issue - no log rotation
+    volumes:
+      - audit-data:/app/audit
+      - audit-archive:/app/archive
+    environment:
+      - LOG_LEVEL=TRACE
+      - AUDIT_RETENTION_DAYS=forever
+
+  batch-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: batch-processor
+    restart: "no"
+    # BUG: restart: "no" means exited containers pile up and hold references to layers
+    volumes:
+      - batch-data:/app/batch
+      - batch-output:/app/output
+      - batch-temp:/tmp/batch
+
+# BUG: Volumes accumulate over time as containers are recreated
+# Old orphaned volumes from previous docker-compose runs never cleaned
+volumes:
+  payment-data:
+  payment-temp:
+  audit-data:
+  audit-archive:
+  batch-data:
+  batch-output:
+  batch-temp:

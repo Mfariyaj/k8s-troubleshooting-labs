@@ -1,0 +1,28 @@
+# BuildKit daemon configuration
+# BUG: gc.keepBytes set too low — evicts cache immediately after build
+# BUG: worker.oci settings conflict with rootless mode in CI
+
+[registry."myregistry.io"]
+  http = true
+  insecure = true
+  # BUG: mirrors configuration prevents cache pull
+  mirrors = ["mirror.internal.io"]
+
+[worker.oci]
+  enabled = true
+  # BUG: max-parallelism set to 1, making builds extremely slow
+  max-parallelism = 1
+  gc = true
+  # BUG: gckeepbytes too low — 100MB not enough for Go modules
+  gckeepbytes = 104857600
+  # BUG: gcpolicy maxentrysize too small — evicts large Go modules
+  [[worker.oci.gcpolicy]]
+    keepBytes = 104857600
+    keepDuration = 60
+    maxEntrySize = 10485760
+    filters = ["type==regular"]
+
+[worker.containerd]
+  enabled = false
+
+# BUG: No cache export/import configuration for CI persistence

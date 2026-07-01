@@ -1,0 +1,27 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.24"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Config that gets updated frequently (causes new revisions)
+config:
+  version: "v50"
+  timestamp: "2024-12-15T10:00:00Z"
+  featureFlags:
+    newUI: true
+    betaAPI: true
+    experimentalCache: false

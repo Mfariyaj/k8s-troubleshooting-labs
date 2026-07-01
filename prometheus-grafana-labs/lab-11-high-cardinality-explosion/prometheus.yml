@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  # BUG: No global sample_limit set — allows unlimited series per scrape
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'high-cardinality-app'
+    scrape_interval: 5s
+    scrape_timeout: 30s
+    # BUG: No sample_limit configured — should be something like:
+    # sample_limit: 10000
+    static_configs:
+      - targets: ['metrics-app:8000']
+    # BUG: No metric_relabel_configs to drop high-cardinality labels!
+    # Should have something like:
+    # metric_relabel_configs:
+    #   - source_labels: [request_id]
+    #     regex: '.+'
+    #     action: labeldrop
+    #   - source_labels: [user_id]
+    #     regex: '.+'
+    #     action: labeldrop
+    #   - source_labels: [session_id]
+    #     regex: '.+'
+    #     action: labeldrop

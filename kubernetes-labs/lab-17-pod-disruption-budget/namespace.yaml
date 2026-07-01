@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-17-pdb
+  labels:
+    lab: pdb-drain-blocked
+    environment: production

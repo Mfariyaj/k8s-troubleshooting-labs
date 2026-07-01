@@ -1,0 +1,65 @@
+# Jenkins Configuration as Code - Security Configuration
+# BUG 1: References *ldap-server-config anchor from jenkins.yaml - DOESN'T WORK cross-file
+# BUG 2: 'authorizationStrategy' is placed under 'security:' block but after upgrade
+#         it should be under 'jenkins:' directly
+# BUG 3: The 'securityRealm' is ALSO defined here AND in jenkins.yaml - conflict
+
+# BUG: This top-level 'security' block format was DEPRECATED in newer JCasC versions
+# 'securityRealm' and 'authorizationStrategy' now go directly under 'jenkins:'
+security:
+  # BUG: securityRealm defined here AND in jenkins.yaml = merge conflict
+  securityRealm:
+    ldap:
+      configurations:
+        # BUG: Cross-file anchor reference - will fail with "undefined alias"
+        - <<: *ldap-server-config
+          userSearchBase: "ou=people"
+          userSearch: "uid={0}"
+          groupSearchBase: "ou=groups"
+          groupSearchFilter: "(& (cn={0}) (objectclass=groupOfNames))"
+          inhibitInferRootDN: false
+          displayNameAttributeName: "displayName"
+          mailAddressAttributeName: "mail"
+      disableMailAddressResolver: false
+      groupIdStrategy: "caseInsensitive"
+      userIdStrategy: "caseInsensitive"
+
+  # BUG: 'authorizationStrategy' under 'security:' block - wrong level after upgrade
+  # Should be under 'jenkins:' not 'security:'
+  authorizationStrategy:
+    roleBased:
+      roles:
+        global:
+          - name: "admin"
+            description: "Jenkins Administrators"
+            permissions:
+              - "Overall/Administer"
+            entries:
+              - group: "jenkins-admins"
+          - name: "developer"
+            description: "Developers - build and read access"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Workspace"
+            entries:
+              - group: "developers"
+              - group: "contractors"
+          - name: "readonly"
+            description: "Read-only access"
+            permissions:
+              - "Overall/Read"
+              - "Job/Read"
+            entries:
+              - group: "stakeholders"
+
+# BUG: This 'jenkins:' section will CONFLICT with the one in jenkins.yaml
+# JCasC merges files but duplicate top-level keys cause unpredictable behavior
+jenkins:
+  # BUG: Trying to override securityRealm here too - triple definition!
+  securityRealm:
+    ldap:
+      configurations:
+        - server: "ldaps://ldap.company.internal:636"
+          rootDN: "dc=company,dc=internal"

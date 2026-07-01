@@ -1,6 +1,6 @@
 # 🔧 DevOps Troubleshooting Labs
 
-## 110+ Real-World Broken Scenarios for DevOps Engineers
+## 170+ Real-World Broken Scenarios for DevOps Engineers
 
 ---
 
@@ -16,19 +16,19 @@ Whether it's a crashing Kubernetes pod, a failing Terraform plan, a misconfigure
 
 | # | Category | Labs | Directory | Status |
 |---|----------|------|-----------|--------|
-| 01 | Kubernetes | 15 | `kubernetes-labs/` | ✅ Available |
-| 02 | Terraform | 10 | `terraform-labs/` | ✅ Available |
-| 03 | Docker | 10 | `docker-labs/` | ✅ Available |
-| 04 | Ansible | 10 | `ansible-labs/` | ✅ Available |
-| 05 | Jenkins | 10 | `jenkins-labs/` | ✅ Available |
-| 06 | ArgoCD | 10 | `argocd-labs/` | ✅ Available |
-| 07 | Prometheus/Grafana | 10 | `prometheus-grafana-labs/` | ✅ Available |
-| 08 | Helm | 10 | `helm-labs/` | ✅ Available |
-| 09 | Linux/Networking | 10 | `linux-networking-labs/` | ✅ Available |
-| 10 | Nginx/HAProxy | 10 | `nginx-haproxy-labs/` | ✅ Available |
-| 11 | CI/CD Pipelines | 10 | `cicd-pipelines-labs/` | ✅ Available |
+| 01 | Kubernetes | 20 | `kubernetes-labs/` | ✅ Available |
+| 02 | Terraform | 15 | `terraform-labs/` | ✅ Available |
+| 03 | Docker | 15 | `docker-labs/` | ✅ Available |
+| 04 | Ansible | 15 | `ansible-labs/` | ✅ Available |
+| 05 | Jenkins | 15 | `jenkins-labs/` | ✅ Available |
+| 06 | ArgoCD | 15 | `argocd-labs/` | ✅ Available |
+| 07 | Prometheus/Grafana | 15 | `prometheus-grafana-labs/` | ✅ Available |
+| 08 | Helm | 15 | `helm-labs/` | ✅ Available |
+| 09 | Linux/Networking | 15 | `linux-networking-labs/` | ✅ Available |
+| 10 | Nginx/HAProxy | 15 | `nginx-haproxy-labs/` | ✅ Available |
+| 11 | CI/CD Pipelines | 15 | `cicd-pipelines-labs/` | ✅ Available |
 
-**Total: 115 labs across 11 categories**
+**Total: 170 labs across 11 categories**
 
 ---
 
@@ -130,17 +130,17 @@ Track your completion across all categories:
 
 | Category | Completed | Total | Progress |
 |----------|-----------|-------|----------|
-| ☐ Kubernetes | _ /15 | 15 | ░░░░░░░░░░ |
-| ☐ Terraform | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ Docker | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ Ansible | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ Jenkins | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ ArgoCD | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ Prometheus/Grafana | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ Helm | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ Linux/Networking | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ Nginx/HAProxy | _ /10 | 10 | ░░░░░░░░░░ |
-| ☐ CI/CD Pipelines | _ /10 | 10 | ░░░░░░░░░░ |
+| ☐ Kubernetes | _ /20 | 20 | ░░░░░░░░░░ |
+| ☐ Terraform | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Docker | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Ansible | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Jenkins | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ ArgoCD | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Prometheus/Grafana | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Helm | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Linux/Networking | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Nginx/HAProxy | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ CI/CD Pipelines | _ /15 | 15 | ░░░░░░░░░░ |
 
 ---
 

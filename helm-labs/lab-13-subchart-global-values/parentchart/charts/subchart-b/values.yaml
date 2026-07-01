@@ -1,0 +1,10 @@
+replicaCount: 1
+
+image:
+  repository: myapp/frontend
+  tag: "latest"
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 3000

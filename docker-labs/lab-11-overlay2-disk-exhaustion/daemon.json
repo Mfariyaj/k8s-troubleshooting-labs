@@ -1,0 +1,7 @@
+{
+  "storage-driver": "overlay2",
+  "log-driver": "json-file",
+  "data-root": "/var/lib/docker",
+  "debug": true,
+  "experimental": false
+}

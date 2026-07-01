@@ -1,0 +1,149 @@
+---
+# Critical production deployment with 3 replicas
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-processor
+  namespace: lab-17-pdb
+  labels:
+    app: order-processor
+    tier: backend
+    criticality: high
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: order-processor
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: order-processor
+        tier: backend
+    spec:
+      containers:
+        - name: order-processor
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: order-processor
+---
+# PDB with minAvailable set HIGHER than replicas — this is the bug
+# With 3 replicas and minAvailable: 3, no pod can ever be evicted
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order-processor-pdb
+  namespace: lab-17-pdb
+  labels:
+    app: order-processor
+spec:
+  minAvailable: 3
+  selector:
+    matchLabels:
+      app: order-processor
+---
+# Second deployment that also has an overly restrictive PDB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: lab-17-pdb
+  labels:
+    app: inventory-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+        tier: backend
+    spec:
+      containers:
+        - name: inventory-service
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 8081
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+---
+# PDB for inventory-service: maxUnavailable: 0 — completely blocks any eviction
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: inventory-service-pdb
+  namespace: lab-17-pdb
+  labels:
+    app: inventory-service
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: inventory-service
+---
+# Service for order-processor
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-processor
+  namespace: lab-17-pdb
+spec:
+  selector:
+    app: order-processor
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+# Service for inventory-service
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: lab-17-pdb
+spec:
+  selector:
+    app: inventory-service
+  ports:
+    - port: 80
+      targetPort: 8081
+  type: ClusterIP

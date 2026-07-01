@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-16-webhook
+  labels:
+    lab: webhook-rejection
+    environment: production

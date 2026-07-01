@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: scaling-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://git.example.com/apps/web-frontend.git
+    targetRevision: main
+    path: manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: scaling-app
+  ignoreDifferences:
+    # BUG 1: 'group' field value is wrong — Deployments are in the 'apps' group
+    # but ArgoCD expects the full API group name. However, the jsonPointers
+    # format is incorrect for this context.
+    - group: apps
+      kind: Deployment
+      # BUG 2: jsonPointers should be valid RFC 6901 pointers.
+      # The entry below is correct format BUT ArgoCD has a known issue where
+      # jsonPointers doesn't work properly when Server-Side Apply is not enabled.
+      # The team also tried jqPathExpressions but with wrong syntax.
+      jqPathExpressions:
+        # BUG 3: Wrong jq syntax — should be .spec.replicas (no escaping needed)
+        # This uses JSON Pointer syntax inside jqPathExpressions field (wrong!)
+        - "/spec/replicas"
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # BUG 4: ServerSideApply is not enabled
+      # Need: ServerSideApply=true
+      # Without this, ArgoCD does full-object apply and doesn't respect field managers
+      # Also missing: RespectIgnoreDifferences=true (needed for auto-sync with ignore)
+      - ApplyOutOfSyncOnly=true

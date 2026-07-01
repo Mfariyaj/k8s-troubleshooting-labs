@@ -1,0 +1,94 @@
+# Jenkins Configuration as Code - LDAP + Authorization Matrix
+# Lab 14: Users can login via LDAP but have no permissions
+#
+# BUG 1: groupSearchFilter uses cn={0} — should be member={0} for groupOfNames/groupOfUniqueNames
+# BUG 2: Group names in the role-strategy matrix are CASE-SENSITIVE but LDAP returns
+#         mixed case (e.g., "Jenkins-Admins" from LDAP vs "jenkins-admins" in matrix)
+# BUG 3: Nested groups are not resolved — user is in "team-leads" which is member of
+#         "jenkins-admins", but Jenkins doesn't recurse group membership
+# BUG 4: authorizationStrategy uses DN format ("cn=Jenkins-Admins,ou=groups,dc=company,dc=internal")
+#         but the LDAP plugin returns just the CN ("Jenkins-Admins") — DN vs CN mismatch
+
+jenkins:
+  securityRealm:
+    ldap:
+      configurations:
+        - server: "ldap://openldap:389"
+          rootDN: "dc=company,dc=internal"
+          managerDN: "cn=admin,dc=company,dc=internal"
+          managerPasswordSecret: "${LDAP_ADMIN_PASSWORD}"
+          userSearchBase: "ou=people"
+          userSearch: "uid={0}"
+          groupSearchBase: "ou=groups"
+          # BUG: This filter finds groups whose CN matches the group name
+          # It should find groups where the USER is a member
+          # For groupOfNames: (member={0}) where {0} is the user's full DN
+          # For posixGroup: (memberUid={0}) where {0} is the uid
+          # Current filter: returns the group object itself, not membership
+          groupSearchFilter: "(& (cn={0}) (objectclass=groupOfNames))"
+          # BUG: groupMembershipStrategy should be set for nested groups
+          # Without it, only direct membership is checked
+          groupMembershipStrategy:
+            fromGroupSearch:
+              filter: "(cn={0})"
+          displayNameAttributeName: "displayName"
+          mailAddressAttributeName: "mail"
+          inhibitInferRootDN: false
+      disableMailAddressResolver: false
+      # BUG: caseInsensitive for userIdStrategy is good, but groupIdStrategy is
+      # NOT set to caseInsensitive — so group comparison is case-sensitive
+      userIdStrategy: "caseInsensitive"
+      groupIdStrategy: "caseSensitive"
+
+  authorizationStrategy:
+    roleBased:
+      roles:
+        global:
+          - name: "admin"
+            description: "Full Jenkins Administration"
+            permissions:
+              - "Overall/Administer"
+            entries:
+              # BUG: Using full DN format — but Jenkins LDAP plugin returns just CN
+              # The plugin populates user's groups as CN only (e.g., "Jenkins-Admins")
+              # not as full DN ("cn=Jenkins-Admins,ou=groups,dc=company,dc=internal")
+              - group: "cn=Jenkins-Admins,ou=groups,dc=company,dc=internal"
+          - name: "developer"
+            description: "Build and deploy access"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Read"
+              - "Job/Cancel"
+              - "Job/Workspace"
+              - "Run/Replay"
+              - "Run/Update"
+            entries:
+              # BUG: Case mismatch — LDAP returns "Developers" (capital D)
+              # but this is lowercase "developers"
+              # With groupIdStrategy: caseSensitive, these won't match
+              - group: "developers"
+              # BUG: Same case mismatch
+              - group: "devops-engineers"
+          - name: "readonly"
+            description: "Read-only access for stakeholders"
+            permissions:
+              - "Overall/Read"
+              - "Job/Read"
+            entries:
+              # BUG: This group contains "team-leads" as a nested member
+              # Team leads are in "Jenkins-Admins" via nested group, but
+              # Jenkins doesn't resolve nested LDAP groups by default
+              - group: "stakeholders"
+              - group: "management"
+        items:
+          - name: "project-admin"
+            description: "Project-specific admin"
+            pattern: ".*"
+            permissions:
+              - "Job/Configure"
+              - "Job/Build"
+              - "Job/Delete"
+            entries:
+              # BUG: Uses DN format again
+              - group: "cn=DevOps-Engineers,ou=groups,dc=company,dc=internal"

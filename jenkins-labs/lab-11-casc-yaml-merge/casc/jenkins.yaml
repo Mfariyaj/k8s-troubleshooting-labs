@@ -1,0 +1,76 @@
+# Jenkins Configuration as Code - Main Configuration
+# BUG 1: Anchor 'ldap-server-config' is defined here but referenced in security.yaml
+#         YAML anchors are FILE-SCOPED - cross-file references don't work!
+# BUG 2: 'securityRealm' is placed at wrong level - after plugin upgrade it moved
+#         under 'jenkins:' directly, not under a 'security:' block
+
+jenkins:
+  systemMessage: "Jenkins configured via JCasC - Production Environment"
+  numExecutors: 0
+  mode: EXCLUSIVE
+  
+  # This anchor is defined here but WRONGLY referenced in credentials.yaml and security.yaml
+  # YAML anchors don't cross file boundaries in JCasC!
+  labeledServers: &ldap-server-config
+    server: "ldaps://ldap.company.internal:636"
+    rootDN: "dc=company,dc=internal"
+    managerDN: "cn=jenkins-svc,ou=service-accounts,dc=company,dc=internal"
+    managerPasswordSecret: "ldap-manager-password"
+
+  # BUG: 'securityRealm' should NOT be nested under jenkins: directly with this syntax
+  # After upgrade, the schema expects it differently
+  # The correct path is jenkins.securityRealm but the 'security' wrapper was removed
+  security:
+    securityRealm:
+      ldap:
+        configurations:
+          - <<: *ldap-server-config  # This works within same file but schema is wrong
+            userSearchBase: "ou=people"
+            userSearch: "uid={0}"
+            groupSearchBase: "ou=groups"
+            groupSearchFilter: "(& (cn={0}) (objectclass=groupOfNames))"
+
+  # Tool configuration using anchors
+  tools: &default-java-tool
+    jdk:
+      installations:
+        - name: "JDK-17"
+          home: "/opt/java/openjdk-17"
+        - name: "JDK-11"
+          home: "/opt/java/openjdk-11"
+    maven:
+      installations:
+        - name: "Maven-3.9"
+          home: "/opt/maven/3.9.6"
+
+  # Node configuration
+  nodes:
+    - permanent:
+        name: "build-agent-01"
+        remoteFS: "/home/jenkins"
+        launcher:
+          ssh:
+            host: "agent-01.company.internal"
+            port: 22
+            credentialsId: "ssh-agent-key"
+        retentionStrategy: "always"
+        nodeProperties:
+          - toolLocation:
+              locations:
+                # BUG: This references an anchor defined in the same block as a mapping,
+                # but the anchor is on the tools block - can't merge a list here
+                - <<: *default-java-tool
+
+# BUG: 'unclassified' with location config uses wrong field name after upgrade
+unclassified:
+  location:
+    url: "https://jenkins.company.internal/"
+    adminAddress: "devops-team@company.internal"
+  
+  # Global tool configuration - duplicated from above due to anchor confusion
+  globalConfigFiles:
+    configs:
+      - mavenSettings:
+          id: "maven-global-settings"
+          name: "Maven Global Settings"
+          providerId: "org.jenkinsci.plugins.configfiles.maven.GlobalMavenSettingsConfig"

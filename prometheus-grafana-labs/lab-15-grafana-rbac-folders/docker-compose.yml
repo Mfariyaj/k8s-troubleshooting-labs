@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  grafana:
+    image: grafana/grafana-enterprise:10.4.0
+    container_name: grafana-rbac
+    volumes:
+      - ./grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_PATHS_CONFIG=/etc/grafana/grafana.ini
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      # BUG: GF_SECURITY_ADMIN_PASSWORD overrides grafana.ini admin_password
+      # but the provisioning scripts below use the ini file password
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=
+    ports:
+      - "3000:3000"
+    networks:
+      - grafana
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: prometheus-rbac
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus-simple.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - grafana
+    restart: unless-stopped
+
+  # Setup container that creates teams, folders, and permissions
+  grafana-setup:
+    image: curlimages/curl:8.6.0
+    container_name: grafana-setup
+    depends_on:
+      grafana:
+        condition: service_healthy
+    networks:
+      - grafana
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Setting up Grafana teams, folders, and RBAC..."
+        sleep 5
+        
+        BASE_URL="http://grafana:3000"
+        AUTH="admin:admin"
+        
+        # Create Team A
+        echo "Creating Team A..."
+        curl -s -X POST "$$BASE_URL/api/teams" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Team A","email":"team-a@company.com"}'
+        
+        # Create Team B
+        echo "Creating Team B..."
+        curl -s -X POST "$$BASE_URL/api/teams" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Team B","email":"team-b@company.com"}'
+        
+        # Create users for teams
+        echo "Creating users..."
+        curl -s -X POST "$$BASE_URL/api/admin/users" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Alice","login":"alice","password":"alice123","email":"alice@company.com"}'
+        
+        curl -s -X POST "$$BASE_URL/api/admin/users" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Bob","login":"bob","password":"bob123","email":"bob@company.com"}'
+        
+        # Add Alice to Team A (user ID 2, team ID 1)
+        curl -s -X POST "$$BASE_URL/api/teams/1/members" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"userId":2}'
+        
+        # Add Bob to Team B (user ID 3, team ID 2)
+        curl -s -X POST "$$BASE_URL/api/teams/2/members" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"userId":3}'
+        
+        # Create folders with specific UIDs
+        echo "Creating folders..."
+        curl -s -X POST "$$BASE_URL/api/folders" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"uid":"team-a-folder","title":"Team A Dashboards"}'
+        
+        curl -s -X POST "$$BASE_URL/api/folders" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"uid":"team-b-folder","title":"Team B Dashboards"}'
+        
+        # Create nested folder under Team A
+        curl -s -X POST "$$BASE_URL/api/folders" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{"uid":"team-a-prod","title":"Team A Production","parentUid":"team-a-folder"}'
+        
+        # Set folder permissions — BUG: Uses wrong permission scope
+        # Setting Team A as Viewer on their own folder (should be Editor)
+        echo "Setting folder permissions..."
+        curl -s -X POST "$$BASE_URL/api/folders/team-a-folder/permissions" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "items": [
+              {"role":"Viewer","permission":1},
+              {"teamId":1,"permission":1}
+            ]
+          }'
+        
+        # BUG: Team B permissions use dashboard scope instead of folder scope
+        curl -s -X POST "$$BASE_URL/api/folders/team-b-folder/permissions" \
+          -u "$$AUTH" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "items": [
+              {"role":"Viewer","permission":1},
+              {"teamId":2,"permission":1}
+            ]
+          }'
+        
+        echo ""
+        echo "Setup complete! (with intentional RBAC misconfigurations)"
+        echo "Test access:"
+        echo "  alice/alice123 - should see Team A dashboards ONLY"
+        echo "  bob/bob123 - should see Team B dashboards ONLY"
+        echo "  anonymous - should see NOTHING (but will see everything due to bugs)"
+
+volumes:
+  grafana-data:
+
+networks:
+  grafana:
+    driver: bridge

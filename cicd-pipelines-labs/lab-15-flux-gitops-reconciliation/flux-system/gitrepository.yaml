@@ -1,0 +1,42 @@
+# Flux GitRepository source
+#
+# BUG: interval is set to 1h — this means Flux only checks for new commits
+# every hour. After a push, the team waits up to 60 minutes for reconciliation.
+# Should be something like 1m or 5m for responsive GitOps.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: infra-repo
+  namespace: flux-system
+spec:
+  # BUG: 1 hour polling interval — too slow for CI/CD
+  # Changes pushed to git won't be detected for up to an hour
+  interval: 1h
+
+  url: https://github.com/acme-corp/infra-deploy.git
+  ref:
+    branch: main
+
+  secretRef:
+    name: git-credentials
+
+  # Timeout for git operations
+  timeout: 60s
+
+  # Ignore paths that don't need reconciliation
+  ignore: |
+    # Exclude docs
+    /docs/
+    # Exclude CI files
+    /.github/
+---
+# Git credentials secret (placeholder)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-credentials
+  namespace: flux-system
+type: Opaque
+stringData:
+  username: git
+  password: ghp_placeholder_token_replace_me

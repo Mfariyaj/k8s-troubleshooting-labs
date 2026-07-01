@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: multi-source-app
+  namespace: argocd
+spec:
+  project: default
+  # Multi-source specification
+  sources:
+    # Source 0: Helm chart from chart repository
+    - repoURL: https://charts.example.com
+      chart: platform-service
+      # BUG 2: Invalid semver range — "2.x.x" is not valid Helm version constraint
+      # Should be: "2.*" or "~2.0.0" or ">=2.0.0 <3.0.0" or a specific version like "2.1.0"
+      targetRevision: "2.x.x"
+      helm:
+        releaseName: platform-service
+        valueFiles:
+          # BUG 1: Wrong ref placeholder — source[1] defines ref as 'valuesRef'
+          # but this uses '$values' instead of '$valuesRef'
+          - "$values/environments/production/values.yaml"
+          - "$values/environments/production/secrets.yaml"
+        parameters:
+          - name: global.environment
+            value: production
+          - name: global.cluster
+            value: prod-us-east-1
+
+    # Source 1: Values from a separate Git repository
+    - repoURL: https://git.example.com/platform/helm-values.git
+      # BUG 4: targetRevision references a branch 'release-v2.0' but the actual
+      # repo uses tag naming 'v2.0.0' or branch naming 'release/v2.0' (with slash)
+      targetRevision: "release-v2.0"
+      # BUG 3: ref field is 'valuesRef' but valueFiles above reference '$values'
+      # These must match — either change ref to 'values' or change $values to $valuesRef
+      ref: valuesRef
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,60 @@
+---
+# Playbook that should trigger callback events for external logging
+# Expected: All task events are logged to external system via custom_logger callback
+# Actual: Tasks run but NO callback events fire to external system
+
+- name: Application deployment with event logging
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    app_name: "web-service"
+    app_version: "2.4.1"
+    deploy_env: "production"
+    config_dir: "/tmp/ansible-lab11/config"
+    log_dir: "/tmp/ansible-lab11/logs"
+
+  tasks:
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ config_dir }}"
+        - "{{ log_dir }}"
+
+    - name: Generate application configuration
+      copy:
+        content: |
+          app_name={{ app_name }}
+          app_version={{ app_version }}
+          environment={{ deploy_env }}
+          log_level=INFO
+          metrics_enabled=true
+        dest: "{{ config_dir }}/app.conf"
+        mode: '0644'
+
+    - name: Deploy health check script
+      copy:
+        content: |
+          #!/bin/bash
+          echo "OK - {{ app_name }} v{{ app_version }}"
+          exit 0
+        dest: "{{ config_dir }}/healthcheck.sh"
+        mode: '0755'
+
+    - name: Simulate application startup
+      command: echo "Starting {{ app_name }} v{{ app_version }} in {{ deploy_env }}"
+      changed_when: false
+
+    - name: Verify deployment
+      stat:
+        path: "{{ config_dir }}/app.conf"
+      register: deploy_check
+
+    - name: Report deployment status
+      debug:
+        msg: "Deployment of {{ app_name }} v{{ app_version }} completed successfully"
+      when: deploy_check.stat.exists

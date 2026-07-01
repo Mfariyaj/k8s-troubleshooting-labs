@@ -1,0 +1,27 @@
+apiVersion: 1
+
+providers:
+  - name: 'Team A Dashboards'
+    orgId: 1
+    # BUG: folder UID doesn't match the actual folder created in Grafana
+    # This causes dashboards to be provisioned to a non-existent folder
+    # or to General folder, bypassing all RBAC folder permissions
+    folderUid: 'team-a-folder-WRONG-UID'
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
+
+  - name: 'Team B Dashboards'
+    orgId: 1
+    # BUG: This folder UID also wrong — points to nothing
+    folderUid: 'team-b-dashboards-folder'
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

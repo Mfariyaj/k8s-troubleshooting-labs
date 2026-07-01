@@ -1,0 +1,67 @@
+// Jenkinsfile for Lab 11 - CasC Validation Pipeline
+// This pipeline validates that JCasC configuration is properly loaded
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Verify CasC Configuration') {
+            steps {
+                script {
+                    // Verify credentials are available
+                    withCredentials([
+                        usernamePassword(credentialsId: 'docker-registry-creds', 
+                                        usernameVariable: 'DOCKER_USER', 
+                                        passwordVariable: 'DOCKER_PASS'),
+                        string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')
+                    ]) {
+                        echo "Docker Registry User: ${DOCKER_USER}"
+                        echo "SonarQube Token available: ${SONAR_TOKEN ? 'yes' : 'no'}"
+                    }
+                }
+            }
+        }
+
+        stage('Verify Security Configuration') {
+            steps {
+                script {
+                    def whoami = sh(script: 'whoami', returnStdout: true).trim()
+                    echo "Running as: ${whoami}"
+                    
+                    // Check that LDAP security realm is configured
+                    def configExport = httpRequest(
+                        url: "${env.JENKINS_URL}configuration-as-code/export",
+                        authentication: 'admin-creds'
+                    )
+                    
+                    if (configExport.content.contains('ldap')) {
+                        echo "LDAP security realm is configured"
+                    } else {
+                        error "LDAP security realm NOT found in configuration!"
+                    }
+                }
+            }
+        }
+
+        stage('Verify Tool Configuration') {
+            steps {
+                script {
+                    def javaHome = tool name: 'JDK-17', type: 'jdk'
+                    echo "JDK-17 home: ${javaHome}"
+                    
+                    def mvnHome = tool name: 'Maven-3.9', type: 'maven'
+                    echo "Maven-3.9 home: ${mvnHome}"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "All JCasC configurations verified successfully!"
+        }
+        failure {
+            echo "JCasC configuration verification FAILED - check CasC logs"
+        }
+    }
+}

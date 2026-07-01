@@ -1,0 +1,74 @@
+version: '3.8'
+
+# Container Runtime Shim Death Lab
+# Containers appear running but shim (containerd-shim-runc-v2) is OOM killed
+# docker exec hangs, logs stop, but container shows "Up"
+
+services:
+  memory-hog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memory-hog
+    # BUG: Memory limit too tight — shim process may get OOM killed alongside container
+    # The kernel can kill containerd-shim-runc-v2 if container.mem > limit
+    # Shim lives outside the cgroup but gets caught in OOM cascade
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    # BUG: No oom-kill-disable consideration
+    # BUG: No proper oom_score_adj for shim protection
+    restart: unless-stopped
+    environment:
+      - ALLOC_MB=200
+      - ALLOC_PATTERN=gradual
+
+  worker-a:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-a
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    environment:
+      - ALLOC_MB=100
+      - ALLOC_PATTERN=burst
+    restart: unless-stopped
+
+  worker-b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-b
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    environment:
+      - ALLOC_MB=150
+      - ALLOC_PATTERN=random
+    restart: unless-stopped
+
+  # This service depends on worker containers being responsive
+  # It will hang because docker exec to workers times out
+  monitor:
+    image: docker:24-cli
+    container_name: monitor
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: |
+      sh -c "while true; do
+        echo '[MONITOR] Checking worker health...'
+        timeout 5 docker exec worker-a echo 'worker-a: alive' || echo '[MONITOR] worker-a: UNRESPONSIVE (shim dead?)'
+        timeout 5 docker exec worker-b echo 'worker-b: alive' || echo '[MONITOR] worker-b: UNRESPONSIVE (shim dead?)'
+        sleep 10
+      done"
+    depends_on:
+      - worker-a
+      - worker-b
+    restart: unless-stopped

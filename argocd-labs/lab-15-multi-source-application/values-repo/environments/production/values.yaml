@@ -1,0 +1,50 @@
+# Production values for platform-service
+# Repository: https://git.example.com/platform/helm-values.git
+# Branch: release/v2.0 (NOTE: uses slash, not dash!)
+# Tag: v2.0.0
+
+global:
+  environment: production
+  cluster: prod-us-east-1
+  imageRegistry: 123456789012.dkr.ecr.us-east-1.amazonaws.com
+
+replicaCount: 5
+
+image:
+  repository: platform/service
+  tag: "2.1.0"
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 5
+  maxReplicas: 20
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: api.platform.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+monitoring:
+  enabled: true
+  serviceMonitor: true
+  alerts: true

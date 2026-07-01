@@ -1,0 +1,126 @@
+// Jenkinsfile for Lab 12 - Kubernetes Cloud Plugin Pod Templates
+// BUG 1: Jenkins URL is wrong - uses 'jenkins' but service name is 'jenkins-master'
+// BUG 2: Container name 'jnlp' is overridden - breaks agent connectivity
+// BUG 3: Workspace volume mount path conflicts with container workingDir
+// BUG 4: ServiceAccount 'jenkins-agent' doesn't have pod create permissions
+
+pipeline {
+    agent {
+        kubernetes {
+            // BUG: Jenkins URL configured as http://jenkins:8080 but the actual
+            // Kubernetes service name is 'jenkins-master' (see docker-compose.yml)
+            // The JNLP agent will try to connect back to this URL and fail
+            cloud 'kubernetes'
+            label 'k8s-agent'
+            
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: jenkins-agent
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+spec:
+  # BUG: serviceAccountName 'jenkins-agent' exists but lacks RBAC permissions
+  # Needs: pods/exec, pods/log in the namespace
+  serviceAccountName: jenkins-agent
+  
+  # BUG: nodeSelector targets a label that doesn't exist on any node
+  nodeSelector:
+    jenkins/agent-pool: "builds"
+  
+  containers:
+  # BUG: Naming a container 'jnlp' overrides the default JNLP container!
+  # The kubernetes plugin auto-injects a 'jnlp' container for agent connectivity.
+  # By naming our container 'jnlp', we replace it with one that can't connect back.
+  - name: jnlp
+    image: maven:3.9-eclipse-temurin-17
+    command:
+    - cat
+    tty: true
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+    # BUG: Working directory conflicts with PVC mount below
+    workingDir: /home/jenkins/agent
+    volumeMounts:
+    - name: workspace-pvc
+      mountPath: /home/jenkins/agent
+      # BUG: subPath makes the volume mount read-only effectively
+      # because the PVC doesn't have this subpath created
+      subPath: workspace-data
+
+  - name: docker
+    image: docker:24-dind
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - name: docker-socket
+      mountPath: /var/run/docker.sock
+
+  volumes:
+  - name: workspace-pvc
+    persistentVolumeClaim:
+      # BUG: This PVC 'jenkins-workspace-pvc' doesn't exist in the namespace
+      claimName: jenkins-workspace-pvc
+  - name: docker-socket
+    hostPath:
+      path: /var/run/docker.sock
+      type: Socket
+"""
+        }
+    }
+
+    environment {
+        DOCKER_REGISTRY = 'registry.company.internal:5000'
+        APP_NAME = 'microservice-api'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                container('jnlp') {  // BUG: wrong container name - should be 'maven' or similar
+                    checkout scm
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                container('jnlp') {
+                    sh 'mvn clean package -DskipTests'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                container('jnlp') {
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                container('docker') {
+                    sh """
+                        docker build -t ${DOCKER_REGISTRY}/${APP_NAME}:${BUILD_NUMBER} .
+                        docker push ${DOCKER_REGISTRY}/${APP_NAME}:${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            junit '**/target/surefire-reports/*.xml'
+        }
+    }
+}

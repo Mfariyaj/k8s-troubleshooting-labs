@@ -1,0 +1,100 @@
+# Pod Template Configuration for Jenkins Kubernetes Plugin
+# This is the pod template configured in Jenkins system settings
+# Multiple bugs prevent pods from scheduling and connecting back
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-agent-template
+  namespace: jenkins
+  labels:
+    jenkins/label: k8s-agent
+spec:
+  # BUG: ServiceAccount 'jenkins-agent' doesn't have required RBAC
+  # Missing: pods, pods/exec, pods/log permissions
+  serviceAccountName: jenkins-agent
+  
+  # BUG: This toleration key doesn't match any taint on nodes
+  tolerations:
+  - key: "jenkins/builds-only"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+  # BUG: nodeSelector references a label no node has
+  nodeSelector:
+    jenkins/agent-pool: "builds"
+
+  containers:
+  # BUG: Container named 'jnlp' overrides the built-in JNLP agent container
+  # The kubernetes-plugin injects its own 'jnlp' container that runs the remoting agent
+  # By defining our own 'jnlp', we replace it with maven that doesn't have remoting
+  - name: jnlp
+    image: maven:3.9-eclipse-temurin-17
+    command: ["cat"]
+    tty: true
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+    env:
+    # BUG: JENKINS_URL points to wrong service name
+    # In k8s, the Jenkins master service is 'jenkins-master' not 'jenkins'
+    - name: JENKINS_URL
+      value: "http://jenkins:8080"
+    # BUG: JENKINS_TUNNEL uses wrong port - JNLP port is 50000 but not exposed
+    - name: JENKINS_TUNNEL
+      value: "jenkins:50000"
+    volumeMounts:
+    - name: workspace
+      mountPath: /home/jenkins/agent
+    - name: maven-cache
+      mountPath: /root/.m2
+
+  - name: docker
+    image: docker:24-dind
+    securityContext:
+      privileged: true
+    env:
+    - name: DOCKER_TLS_CERTDIR
+      value: ""
+
+  - name: kubectl
+    image: bitnami/kubectl:1.28
+    command: ["cat"]
+    tty: true
+
+  volumes:
+  - name: workspace
+    persistentVolumeClaim:
+      # BUG: PVC doesn't exist - no PersistentVolumeClaim named this in the namespace
+      claimName: jenkins-workspace-pvc
+  - name: maven-cache
+    emptyDir: {}
+
+---
+# ServiceAccount that's missing proper RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-agent
+  namespace: jenkins
+
+---
+# BUG: This ClusterRoleBinding references wrong ClusterRole
+# 'jenkins-agent-role' doesn't exist — should be a Role with pod permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jenkins-agent-binding
+subjects:
+- kind: ServiceAccount
+  name: jenkins-agent
+  namespace: jenkins
+roleRef:
+  kind: ClusterRole
+  name: jenkins-agent-role  # This ClusterRole doesn't exist!
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  # BUG: external_labels section is MISSING!
+  # Thanos sidecar requires at least one external label to function.
+  # It uses external_labels to identify the source of blocks in object storage.
+  # Without this, the sidecar refuses to upload blocks.
+  # 
+  # Should have:
+  # external_labels:
+  #   cluster: production
+  #   replica: prometheus-0
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']

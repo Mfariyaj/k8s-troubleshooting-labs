@@ -1,0 +1,66 @@
+version: '3.8'
+
+# Docker Swarm Stack with Encrypted Overlay Network
+# Deploy with: docker stack deploy -c docker-compose.yml mystack
+# BUG: Network MTU not adjusted for encryption overhead
+# BUG: Requires IP protocol 50 (ESP) in security groups
+
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    networks:
+      - encrypted-net
+    deploy:
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == worker
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+  api:
+    image: python:3.11-alpine
+    command: python -m http.server 5000
+    networks:
+      - encrypted-net
+    deploy:
+      replicas: 2
+      placement:
+        # BUG: Forces placement across nodes, triggering cross-node encryption issues
+        max_replicas_per_node: 1
+      restart_policy:
+        condition: on-failure
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - encrypted-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  healthcheck:
+    image: busybox
+    command: sh -c "while true; do wget -qO- http://web:80/ && echo OK || echo FAIL; sleep 5; done"
+    networks:
+      - encrypted-net
+    deploy:
+      replicas: 1
+
+networks:
+  encrypted-net:
+    driver: overlay
+    # BUG: encrypted flag requires IP protocol 50 (ESP) in cloud security groups
+    driver_opts:
+      encrypted: ""
+      # BUG: MTU 1500 doesn't account for encryption overhead (~50-100 bytes)
+      # Should be ~1400 for encrypted overlay on standard 1500 MTU networks
+      com.docker.network.driver.mtu: "1500"
+    ipam:
+      config:
+        - subnet: 10.0.1.0/24

@@ -1,0 +1,106 @@
+# BUG 1: secrets: inherit not set — reusable workflow can't access org secrets
+# BUG 2: Input type mismatch — passing boolean but reusable expects string
+# BUG 3: Output not captured correctly — needs context references wrong job ID
+# BUG 4: needs context references a job that doesn't exist
+# BUG 5: env context used but not available to reusable workflows
+
+name: Production Deployment Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment target'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  DEPLOY_TIMEOUT: "300"
+  CLUSTER_NAME: "prod-eks-cluster"
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      build-sha: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: "staging"
+      image-tag: ${{ needs.build.outputs.image-tag }}
+      # BUG: Passing boolean true, but reusable workflow defines input as type: string
+      run-migrations: true
+      # BUG: Using env context — env vars from caller are NOT available in reusable workflows
+      cluster-name: ${{ env.CLUSTER_NAME }}
+      timeout: ${{ env.DEPLOY_TIMEOUT }}
+    # BUG: Missing "secrets: inherit" — reusable workflow won't have access to
+    # KUBECONFIG, SLACK_WEBHOOK, or any org/repo secrets
+
+  integration-tests:
+    name: Run Integration Tests
+    # BUG: References "deploy" but the job is called "deploy-staging"
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          ./scripts/integration-tests.sh
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [deploy-staging, integration-tests]
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      environment: "production"
+      # BUG: Trying to access output from reusable workflow but using wrong syntax
+      # The output from reusable-deploy.yml is not exposed correctly
+      image-tag: ${{ needs.deploy-staging.outputs.deployed-image }}
+      run-migrations: true
+      cluster-name: "prod-eks-cluster"
+      timeout: "600"
+    secrets: inherit
+
+  notify:
+    name: Send Notification
+    needs: deploy-production
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Deployment ${{ needs.deploy-production.outputs.status }} for ${{ github.repository }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

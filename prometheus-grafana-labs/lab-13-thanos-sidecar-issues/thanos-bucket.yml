@@ -1,0 +1,14 @@
+# BUG: Multiple issues in this config:
+# 1. bucket name "thanos-metrics" doesn't exist in MinIO (only "thanos" was created)
+# 2. endpoint uses wrong port (9001 is console, 9000 is API)
+# 3. access_key and secret_key are swapped
+type: S3
+config:
+  bucket: "thanos-metrics"
+  endpoint: "minio:9001"
+  access_key: "minioadmin-secret"
+  secret_key: "minioadmin"
+  insecure: true
+  signature_version2: false
+  # BUG: Missing http_config timeout — will hang on connection issues
+  # BUG: No trace section for debugging

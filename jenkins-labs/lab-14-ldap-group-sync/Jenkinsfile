@@ -1,0 +1,79 @@
+// Jenkinsfile for Lab 14 - LDAP Group Authorization Test
+// This pipeline verifies that LDAP groups map correctly to Jenkins permissions
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Verify LDAP Authentication') {
+            steps {
+                script {
+                    echo "Current user: ${currentBuild.rawBuild.getCause(hudson.model.Cause$UserIdCause)?.userId ?: 'SCM trigger'}"
+                    echo "Testing LDAP group-based authorization..."
+                    
+                    // This should work for users in 'Developers' LDAP group
+                    // But fails because:
+                    //   1. Jenkins has 'developers' (lowercase) in the matrix
+                    //   2. LDAP returns 'Developers' (capital D)
+                    //   3. groupIdStrategy is caseSensitive
+                    echo "If you can see this, you have Job/Read permission"
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo "Building application..."
+                sh 'echo "Build successful"'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    // This requires Job/Build permission
+                    // Users in DevOps-Engineers group should have this
+                    // But the DN vs CN mismatch prevents it
+                    echo "Deploying to staging..."
+                    sh 'echo "Deploy successful"'
+                }
+            }
+        }
+
+        stage('Admin Task') {
+            steps {
+                script {
+                    // This requires Overall/Administer
+                    // Only users in Jenkins-Admins should have it
+                    // But nested groups and DN format prevent matching
+                    echo "Running admin configuration task..."
+                    
+                    // Try to access Jenkins configuration
+                    def jenkinsUrl = env.JENKINS_URL ?: 'http://localhost:8080'
+                    echo "Jenkins URL: ${jenkinsUrl}"
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo """
+            ============================================================
+            AUTHORIZATION FAILURE
+            ============================================================
+            If this pipeline failed with permission errors, check:
+            1. LDAP group search filter (are groups being found?)
+            2. Group name case matching (LDAP vs Jenkins matrix)
+            3. DN vs CN format in authorization entries
+            4. Nested group resolution
+            
+            Useful:
+              - Manage Jenkins → Configure Global Security
+              - LDAP connection test: try authenticating a user
+              - Check /whoAmI/ page to see your groups
+            ============================================================
+            """
+        }
+    }
+}

@@ -1,0 +1,98 @@
+---
+# ValidatingWebhookConfiguration with misconfigured caBundle and non-existent service
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: pod-security-validator.lab-16-webhook.svc
+  labels:
+    app: pod-security-validator
+    lab: webhook-rejection
+spec:
+  webhooks:
+    - name: validate-pods.security.internal
+      admissionReviewVersions: ["v1", "v1beta1"]
+      sideEffects: None
+      failurePolicy: Fail
+      timeoutSeconds: 5
+      clientConfig:
+        service:
+          name: pod-security-validator
+          namespace: lab-16-webhook
+          path: /validate-pods
+          port: 443
+        # Intentionally broken: invalid base64 caBundle (not a real CA cert)
+        caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0KTUlJQkR6Q0J0Z0lKQUxGNmhYYkNxZHJOTUFvR0NDcUdTTTQ5QkFNQ01CSXhFREFPQmdOVkJBTU1CM1JsCmMzUXRZMkV3SGhjTk1qTXdNVEF4TURBd01EQXdXaGNOTWpRd01UQXhNREF3TURBd1dqQVNNUkF3RGdZRApWUVFEREFkMFpYTjBMV05oTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFZm1LZEdEWHIKWVpGdmRkY0FBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+      rules:
+        - apiGroups: [""]
+          apiVersions: ["v1"]
+          operations: ["CREATE"]
+          resources: ["pods"]
+          scope: "Namespaced"
+      namespaceSelector:
+        matchLabels:
+          lab: webhook-rejection
+      objectSelector: {}
+---
+# Target deployment that should be blocked by the webhook
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: lab-16-webhook
+  labels:
+    app: payment-service
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        tier: backend
+        security-scan: required
+    spec:
+      containers:
+        - name: payment-api
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 3
+---
+# Service for the payment app (this will work fine)
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: lab-16-webhook
+  labels:
+    app: payment-service
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP

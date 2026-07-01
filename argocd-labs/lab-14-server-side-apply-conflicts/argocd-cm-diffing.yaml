@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Global ignoreDifferences configuration (also broken)
+  # This attempts to globally ignore replicas for all Deployments
+  resource.customizations.ignoreDifferences.apps_Deployment: |
+    jsonPointers:
+      - /spec/replicas
+    # This jqPathExpressions has wrong escaping
+    jqPathExpressions:
+      - .spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"]
+  # Comparison options (attempting to ignore extra fields from SSA)
+  resource.compareoptions: |
+    ignoreResourceStatusField: all

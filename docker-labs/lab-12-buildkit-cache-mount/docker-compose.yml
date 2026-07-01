@@ -1,0 +1,39 @@
+version: '3.8'
+
+# BUG: cache_from references use wrong format for BuildKit inline cache
+# BUG: No BUILDKIT_INLINE_CACHE build arg to export cache metadata
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      # BUG: cache_from format incorrect - should use type=registry,ref= syntax for BuildKit
+      cache_from:
+        - myregistry.io/myapp:cache
+        - myregistry.io/myapp:latest
+      # BUG: Missing cache export configuration
+      args:
+        - BUILDKIT_INLINE_CACHE=0
+    image: myapp:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=production
+      - DB_HOST=postgres
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secretpass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

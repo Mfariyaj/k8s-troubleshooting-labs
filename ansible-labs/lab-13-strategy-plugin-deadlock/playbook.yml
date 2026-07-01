@@ -1,0 +1,80 @@
+---
+# Playbook using 'free' strategy with serial - causes race condition
+# Expected: Tasks run in parallel safely with proper resource locking
+# Actual: Race condition on shared file, serial is ignored, SSH pool exhausted
+
+- name: Distributed configuration deployment
+  hosts: all
+  # BUG 1: strategy 'free' is incompatible with 'serial'
+  # serial is ignored when strategy is 'free' - all hosts run simultaneously
+  strategy: free
+  serial: 1  # BUG: This is IGNORED with strategy: free
+  gather_facts: false
+
+  vars:
+    shared_config_file: "/tmp/ansible-lab13/shared/cluster-config.yml"
+    shared_lock_dir: "/tmp/ansible-lab13/locks"
+    node_config_dir: "/tmp/ansible-lab13/nodes"
+
+  tasks:
+    - name: Create node working directory
+      file:
+        path: "{{ node_config_dir }}/{{ inventory_hostname }}"
+        state: directory
+        mode: '0755'
+      # No throttle - all 20 hosts hit this simultaneously
+
+    - name: Generate node-specific configuration
+      copy:
+        content: |
+          # Configuration for {{ inventory_hostname }}
+          node_id={{ inventory_hostname }}
+          cluster_role=worker
+          join_token=abc123-{{ inventory_hostname }}
+          timestamp={{ ansible_date_time.iso8601 | default(now()) }}
+        dest: "{{ node_config_dir }}/{{ inventory_hostname }}/node.conf"
+        mode: '0644'
+
+    # BUG 2: Multiple hosts write to SAME file with no locking or throttle
+    # With strategy: free, all 20 hosts write simultaneously = race condition
+    - name: Register node in shared cluster configuration
+      lineinfile:
+        path: "{{ shared_config_file }}"
+        line: "  {{ inventory_hostname }}: active"
+        create: yes
+        mode: '0644'
+      # BUG: No 'throttle: 1' on this task - causes file corruption
+
+    - name: Update shared node counter
+      shell: |
+        # BUG 3: Race condition - read/modify/write without any locking
+        current=$(cat /tmp/ansible-lab13/shared/node_count 2>/dev/null || echo 0)
+        new=$((current + 1))
+        echo $new > /tmp/ansible-lab13/shared/node_count
+      args:
+        executable: /bin/bash
+      # No throttle, no file lock, strategy:free = data corruption
+
+    - name: Verify node registration
+      shell: grep "{{ inventory_hostname }}" "{{ shared_config_file }}"
+      register: verify_result
+      failed_when: verify_result.rc != 0
+      retries: 3
+      delay: 1
+
+    - name: Generate cluster certificate request
+      shell: |
+        sleep $((RANDOM % 3))
+        echo "cert-request-{{ inventory_hostname }}" >> /tmp/ansible-lab13/shared/cert-requests.txt
+      # BUG 4: Append without lock, parallel writes interleave
+
+    - name: Final node count verification
+      shell: |
+        expected={{ groups['all'] | length }}
+        actual=$(cat /tmp/ansible-lab13/shared/node_count)
+        if [ "$actual" != "$expected" ]; then
+          echo "RACE CONDITION: Expected $expected nodes, got $actual"
+          exit 1
+        fi
+      run_once: true
+      # run_once with strategy:free is also problematic

@@ -1,0 +1,22 @@
+# BUG: Redefining the 'global' block here overrides parent's globals
+global:
+  imageRegistry: docker.io
+  environment: development
+
+replicaCount: 1
+
+image:
+  repository: myapp/backend
+  tag: "latest"
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Export configuration for parent import-values
+# BUG: wrong export key structure — parent expects 'exports.config' but this uses 'exported'
+exported:
+  config:
+    logLevel: debug
+    metricsPort: 9090

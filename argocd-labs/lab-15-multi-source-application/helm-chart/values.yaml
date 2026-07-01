@@ -1,0 +1,37 @@
+# Default values for platform-service
+global:
+  environment: development
+  cluster: local
+  imageRegistry: docker.io
+
+replicaCount: 1
+
+image:
+  repository: platform/service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+
+ingress:
+  enabled: false
+  className: nginx
+
+monitoring:
+  enabled: true
+  serviceMonitor: true

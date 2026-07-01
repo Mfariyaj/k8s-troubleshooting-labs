@@ -1,0 +1,166 @@
+// Jenkinsfile for Lab 13 - Pipeline Replay Divergence
+// This pipeline behaves differently when replayed from Blue Ocean vs SCM-triggered
+//
+// BUG 1: @Library version not pinned - replay resolves at different time
+// BUG 2: params.DEPLOY_ENV uses defaultValue that was cached from a previous build
+// BUG 3: env.BRANCH_NAME is null/empty when pipeline is replayed (not SCM-triggered)
+// BUG 4: stash/unstash from original run not available in replay
+// BUG 5: currentBuild.changeSets is empty in replay
+
+// BUG: Using @Library without version pin means replay may get different version
+// than what was originally resolved at SCM-trigger time.
+// When you hit "Replay", the library is NOT re-resolved from SCM — it uses whatever
+// version was cached. But if cache was evicted, it pulls latest (which may differ).
+@Library('company-shared-library') _
+
+pipeline {
+    agent any
+
+    // BUG: On replay, these parameters use the VALUES from the original run,
+    // NOT the defaultValue. But if the original run was parameterized with non-defaults,
+    // the replay silently uses those values — making behavior diverge.
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['staging', 'production', 'development'],
+            description: 'Target deployment environment'
+        )
+        string(
+            name: 'IMAGE_TAG',
+            defaultValue: 'latest',
+            description: 'Docker image tag to deploy'
+        )
+        booleanParam(
+            name: 'RUN_INTEGRATION_TESTS',
+            defaultValue: true,
+            description: 'Run integration tests before deploy'
+        )
+        booleanParam(
+            name: 'NOTIFY_SLACK',
+            defaultValue: true,
+            description: 'Send Slack notification on completion'
+        )
+    }
+
+    environment {
+        APP_NAME = 'payment-service'
+        // BUG: env.BRANCH_NAME is populated by the SCM plugin when a build is triggered
+        // by a webhook/SCM change. On replay, it's NULL because there's no SCM trigger.
+        // This causes the deployment target logic below to fail.
+        DEPLOY_TARGET = "${env.BRANCH_NAME == 'main' ? 'production' : 'staging'}"
+        VERSION = "${env.BUILD_NUMBER}-${env.BRANCH_NAME ?: 'unknown'}"
+    }
+
+    stages {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    echo "Deploy Environment: ${params.DEPLOY_ENV}"
+                    echo "Image Tag: ${params.IMAGE_TAG}"
+                    echo "Branch Name: ${env.BRANCH_NAME}"
+                    echo "Deploy Target: ${env.DEPLOY_TARGET}"
+                    echo "Version: ${env.VERSION}"
+
+                    // BUG: On replay, BRANCH_NAME is empty/null, so this always fails
+                    if (!env.BRANCH_NAME) {
+                        // In a real scenario this would error, but here it warns
+                        echo "WARNING: BRANCH_NAME is empty — are we in a replay?"
+                    }
+
+                    // BUG: changeSets is empty on replay — no SCM changes available
+                    if (currentBuild.changeSets.size() == 0) {
+                        echo "No changesets found — cannot generate changelog"
+                    }
+                }
+            }
+        }
+
+        stage('Build & Stash') {
+            steps {
+                script {
+                    sh 'echo "Building application..."'
+                    sh 'mkdir -p build && echo "artifact-content-v${BUILD_NUMBER}" > build/app.jar'
+
+                    // BUG: This stash is created during the original run.
+                    // When replayed, the stash from the ORIGINAL build is NOT available.
+                    // The replay re-runs the pipeline code but in a fresh workspace.
+                    stash name: 'build-artifacts', includes: 'build/**'
+                    
+                    echo "Stashed build artifacts"
+                }
+            }
+        }
+
+        stage('Test') {
+            when {
+                expression { params.RUN_INTEGRATION_TESTS }
+            }
+            steps {
+                script {
+                    // BUG: Uses shared library function that may differ between
+                    // SCM-triggered version and replay-cached version
+                    deployHelper.runTests(params.DEPLOY_ENV)
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    // BUG: On replay, if we skip 'Build & Stash' stage (e.g., resume from here),
+                    // the unstash will fail because the stash doesn't exist in this run context
+                    try {
+                        unstash 'build-artifacts'
+                    } catch (Exception e) {
+                        echo "Failed to unstash: ${e.message}"
+                        echo "This happens when replaying — stash is not preserved across replays"
+                        error "Cannot deploy without build artifacts"
+                    }
+
+                    // Uses shared library — version may differ on replay
+                    deployHelper.deploy(
+                        env: params.DEPLOY_ENV,
+                        tag: params.IMAGE_TAG,
+                        branch: env.BRANCH_NAME  // null on replay!
+                    )
+                }
+            }
+        }
+
+        stage('Notify') {
+            when {
+                expression { params.NOTIFY_SLACK }
+            }
+            steps {
+                script {
+                    // BUG: On replay, currentBuild.changeSets is empty
+                    // so the notification message is incomplete/wrong
+                    def changes = currentBuild.changeSets.collect { cs ->
+                        cs.items.collect { "${it.commitId[0..6]}: ${it.msg}" }
+                    }.flatten().join('\n')
+
+                    echo """
+                    Deployment Complete:
+                    - App: ${env.APP_NAME}
+                    - Version: ${env.VERSION}
+                    - Environment: ${params.DEPLOY_ENV}
+                    - Branch: ${env.BRANCH_NAME ?: 'N/A (replay)'}
+                    - Changes:
+                    ${changes ?: 'No changes (replay or manual trigger)'}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo "Pipeline failed! Check if this is a replay vs SCM-triggered build."
+            echo "Common replay issues:"
+            echo "  - BRANCH_NAME is empty"
+            echo "  - stash not available"
+            echo "  - params cached from original run"
+            echo "  - shared library version mismatch"
+        }
+    }
+}

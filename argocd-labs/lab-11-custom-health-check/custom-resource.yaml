@@ -1,0 +1,40 @@
+apiVersion: databases.example.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: prod-postgres
+  namespace: databases
+spec:
+  engine: postgresql
+  version: "15.4"
+  replicas: 3
+  storage:
+    size: 100Gi
+    storageClass: gp3-encrypted
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"
+    retention: 30
+status:
+  # The actual CRD stores phase at the top level of status
+  phase: Running
+  replicas: 3
+  readyReplicas: 3
+  endpoint: "prod-postgres.databases.svc.cluster.local:5432"
+  # Conditions are nested under clusterStatus, NOT directly under status
+  clusterStatus:
+    conditions:
+      - type: Ready
+        status: "True"
+        lastTransitionTime: "2024-01-15T10:30:00Z"
+        reason: AllReplicasReady
+        message: "All 3 replicas are running and healthy"
+      - type: Provisioned
+        status: "True"
+        lastTransitionTime: "2024-01-15T10:25:00Z"
+        reason: StorageProvisioned
+        message: "Storage provisioned successfully"
+      - type: BackupConfigured
+        status: "True"
+        lastTransitionTime: "2024-01-15T10:28:00Z"
+        reason: BackupScheduleSet
+        message: "Backup schedule configured"

@@ -1,0 +1,11 @@
+creation_rules:
+  # BUG 1: path_regex doesn't match the actual file location
+  # The file is 'secrets.yaml' but regex expects 'secrets/*.enc.yaml'
+  - path_regex: secrets/.*\.enc\.yaml$
+    age: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+    # BUG 2: Also references an expired PGP key
+    pgp: 1234567890ABCDEF1234567890ABCDEF12345678
+  
+  # This rule would match but has wrong age key format
+  - path_regex: \.yaml$
+    age: AGE-SECRET-KEY-1QFNZJMRMZ2EQGQFNYW7T4QQ3PZMFAPHNPWA0N3TXFT6YKN2LFXQ9QJXWV

@@ -1,0 +1,95 @@
+# Flux HelmRelease — installs monitoring stack
+#
+# BUGS:
+# 1. valuesFrom references a secret "monitoring-values" that doesn't exist
+# 2. This HelmRelease is in "flux-system" namespace but Kustomization
+#    dependsOn references it in "default" namespace
+# 3. chart.spec.sourceRef references non-existent HelmRepository
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: monitoring-stack
+  # NOTE: This is in flux-system namespace
+  # but the Kustomization dependsOn references "default" namespace
+  namespace: flux-system
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: "55.x"
+      sourceRef:
+        kind: HelmRepository
+        # BUG: References "prometheus-community" but this HelmRepository
+        # doesn't exist — it was never created
+        name: prometheus-community
+        namespace: flux-system
+      interval: 1h
+
+  # Timeout for Helm operations
+  timeout: 10m
+
+  # Install configuration
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+
+  # Upgrade configuration
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+
+  # BUG: valuesFrom references a secret that doesn't exist
+  # Flux will report: "HelmRelease reconciliation failed:
+  #   values from secret 'flux-system/monitoring-values' not found"
+  valuesFrom:
+    - kind: Secret
+      name: monitoring-values
+      # This secret was never created in the cluster!
+      valuesKey: values.yaml
+      optional: false
+
+  values:
+    prometheus:
+      prometheusSpec:
+        retention: 30d
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 50Gi
+
+    grafana:
+      enabled: true
+      adminPassword: "${GRAFANA_ADMIN_PASSWORD}"
+      persistence:
+        enabled: true
+        size: 10Gi
+
+    alertmanager:
+      enabled: true
+      config:
+        route:
+          receiver: 'slack'
+          group_wait: 30s
+        receivers:
+          - name: 'slack'
+            slack_configs:
+              - api_url: "${SLACK_WEBHOOK_URL}"
+                channel: '#alerts'
+---
+# The HelmRepository that should exist but doesn't
+# Uncomment this to fix:
+# apiVersion: source.toolkit.fluxcd.io/v1beta2
+# kind: HelmRepository
+# metadata:
+#   name: prometheus-community
+#   namespace: flux-system
+# spec:
+#   interval: 1h
+#   url: https://prometheus-community.github.io/helm-charts

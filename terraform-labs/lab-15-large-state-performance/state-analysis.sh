@@ -1,0 +1,92 @@
+#!/bin/bash
+# Lab 15: State Analysis Script
+# Analyzes the Terraform state for performance issues
+
+set -e
+
+LAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$LAB_DIR"
+
+echo "========================================================"
+echo "  Terraform State Performance Analysis"
+echo "========================================================"
+echo ""
+
+echo "--- 1. STATE FILE METRICS ---"
+if [ -f "terraform.tfstate" ]; then
+  STATE_SIZE=$(ls -lh terraform.tfstate | awk '{print $5}')
+  RESOURCE_COUNT=$(cat terraform.tfstate | grep '"type"' | wc -l)
+else
+  STATE_SIZE="~54MB (simulated)"
+  RESOURCE_COUNT="~2347 (simulated)"
+fi
+echo "  State file size:     $STATE_SIZE"
+echo "  Total resources:     $RESOURCE_COUNT"
+echo ""
+
+echo "--- 2. RESOURCE TYPE BREAKDOWN ---"
+echo "  200  aws_ecs_service"
+echo "  200  aws_ecs_task_definition"
+echo "  200  aws_security_group"
+echo "  200  aws_iam_role"
+echo "  200  aws_iam_role_policy"
+echo "  200  aws_cloudwatch_log_group"
+echo "  200  aws_ecs_cluster"
+echo "  100  aws_security_group_rule"
+echo "  50   data.aws_secretsmanager_secret_version"
+echo "  50   data.aws_iam_policy_document"
+echo ""
+
+echo "--- 3. PERFORMANCE BOTTLENECKS ---"
+echo ""
+echo "  SLOW: Data sources refreshed every plan"
+echo "  - 20x aws_secretsmanager_secret_version (2-3s each = ~50s)"
+echo "  - 20x aws_lb lookups (1-2s each = ~30s)"
+echo "  - 20x aws_iam_policy_document (0.5s each = ~10s)"
+echo "  - 20x redundant aws_availability_zones (inside modules)"
+echo "  - 20x redundant aws_vpc lookups (inside modules)"
+echo "  - 20x redundant aws_caller_identity (inside modules)"
+echo "  - 20x redundant aws_region (inside modules)"
+echo "  - Total data source overhead: ~5-8 minutes per plan"
+echo ""
+echo "  SLOW: State refresh of 2000+ resources"
+echo "  - Default parallelism=10 means 200+ batches"
+echo "  - Each batch takes 2-5s for API calls"
+echo "  - Total refresh time: ~30-40 minutes"
+echo ""
+echo "  SLOW: Orphaned resources in state"
+echo "  - 8 deprecated services still in state"
+echo "  - ~80 orphaned resources (8 services x 10 resources each)"
+echo ""
+
+echo "--- 4. RECOMMENDED OPTIMIZATIONS ---"
+echo ""
+echo "  IMMEDIATE (no refactoring):"
+echo "  - terraform plan -refresh=false (for dev workflow)"
+echo "  - terraform plan -parallelism=50"
+echo "  - terraform plan -target=module.microservice[\"svc\"]"
+echo "  - terraform state rm deprecated resources"
+echo ""
+echo "  SHORT-TERM (minor refactoring):"
+echo "  - Move data sources out of modules to root level"
+echo "  - Replace Secrets Manager lookups with variable inputs"
+echo "  - Cache AMI IDs in SSM Parameter Store"
+echo "  - Add removed blocks for deprecated services"
+echo ""
+echo "  LONG-TERM (architecture changes):"
+echo "  - Split into per-team or per-domain state files"
+echo "  - Use Terragrunt for state isolation"
+echo "  - Share ECS cluster across services (not 1:1)"
+echo "  - Use terraform_remote_state for cross-state refs"
+echo ""
+
+echo "--- 5. PLAN TIME COMPARISON ---"
+echo ""
+echo "  Current (full plan):                    ~47 minutes"
+echo "  With -refresh=false:                    ~2 minutes"
+echo "  With -target (single service):          ~15 seconds"
+echo "  After removing redundant data sources:  ~25 minutes"
+echo "  After state split (per-team):           ~5 minutes"
+echo "  After full optimization:                ~30 seconds"
+echo ""
+echo "========================================================"

@@ -1,0 +1,167 @@
+---
+# ConfigMap with proxy configuration — contains intentional errors
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-proxy-config
+  namespace: lab-18-sidecar
+  labels:
+    app: notification-svc
+    component: sidecar-config
+data:
+  # BUG: REDIRECT_PORT should be "15001", not "0"
+  REDIRECT_PORT: "0"
+  # BUG: INBOUND_CAPTURE_PORT should be "15006", not "0"
+  INBOUND_CAPTURE_PORT: "0"
+  PROXY_ADMIN_PORT: "15000"
+  OUTBOUND_PORT: "15001"
+  INBOUND_PORT: "15006"
+  SERVICE_CIDR: "10.96.0.0/12"
+  POD_CIDR: "10.244.0.0/16"
+  PROXY_UID: "1337"
+  PROXY_GID: "1337"
+---
+# Deployment with broken sidecar injection
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-svc
+  namespace: lab-18-sidecar
+  labels:
+    app: notification-svc
+    version: v2.1.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: notification-svc
+  template:
+    metadata:
+      labels:
+        app: notification-svc
+        version: v2.1.0
+      annotations:
+        # BUG: Annotation has a typo — "injectt" instead of "inject"
+        sidecar.istio.io/injectt: "true"
+        sidecar.istio.io/proxyImage: "istio/proxyv2:1.20.0"
+        traffic.sidecar.istio.io/includeInboundPorts: "8080"
+        traffic.sidecar.istio.io/excludeOutboundPorts: "443"
+    spec:
+      initContainers:
+        # Simulated istio-init container that sets up iptables rules
+        - name: istio-init
+          image: busybox:1.36
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+            runAsUser: 0
+            runAsNonRoot: false
+          env:
+            - name: REDIRECT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: istio-proxy-config
+                  key: REDIRECT_PORT
+            - name: INBOUND_CAPTURE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: istio-proxy-config
+                  key: INBOUND_CAPTURE_PORT
+            - name: PROXY_UID
+              valueFrom:
+                configMapKeyRef:
+                  name: istio-proxy-config
+                  key: PROXY_UID
+          # BUG: "--to-ports" is not valid with REDIRECT target, should be "--to-port"
+          # Also fails because REDIRECT_PORT is 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Setting up iptables rules for traffic interception..."
+              echo "Redirect port: $REDIRECT_PORT"
+              echo "Inbound capture port: $INBOUND_CAPTURE_PORT"
+              if [ "$REDIRECT_PORT" = "0" ] || [ -z "$REDIRECT_PORT" ]; then
+                echo "Error: failed to set up iptables rules for traffic redirection"
+                echo "Redirect port: $REDIRECT_PORT (invalid, must be > 0)"
+                echo "Exit status: 1"
+                exit 1
+              fi
+              # This would normally run iptables commands
+              # BUG: --to-ports is wrong syntax (should be --to-port for REDIRECT)
+              echo "iptables -t nat -A PREROUTING -p tcp --to-ports $REDIRECT_PORT -j REDIRECT"
+              echo "iptables rules configured successfully"
+      containers:
+        # Main application container
+        - name: notification-app
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+        # Sidecar proxy container — won't start because init container fails
+        - name: istio-proxy
+          image: busybox:1.36
+          ports:
+            - containerPort: 15001
+              name: envoy-outbound
+            - containerPort: 15006
+              name: envoy-inbound
+            - containerPort: 15000
+              name: envoy-admin
+          env:
+            - name: REDIRECT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: istio-proxy-config
+                  key: REDIRECT_PORT
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting Envoy sidecar proxy..."
+              echo "Listening on port $REDIRECT_PORT for outbound traffic"
+              # Simulate proxy running
+              sleep infinity
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+---
+# Service for the notification application
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-svc
+  namespace: lab-18-sidecar
+  labels:
+    app: notification-svc
+spec:
+  selector:
+    app: notification-svc
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+    - name: envoy-admin
+      port: 15000
+      targetPort: 15000
+  type: ClusterIP

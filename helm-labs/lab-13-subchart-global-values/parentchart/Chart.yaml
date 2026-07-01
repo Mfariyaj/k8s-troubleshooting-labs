@@ -1,0 +1,25 @@
+apiVersion: v2
+name: parentchart
+description: A parent chart with subcharts demonstrating global values
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+dependencies:
+  # BUG 1: alias is 'backend' but subchart directory is 'subchart-a'
+  - name: subchart-a
+    version: "0.1.0"
+    repository: "file://charts/subchart-a"
+    alias: backend
+    # BUG 2: condition key doesn't match values.yaml structure
+    condition: subchart-a.enabled
+    # BUG 3: import-values uses wrong format
+    import-values:
+      - child: exports.config
+        parent: backendConfig
+  
+  # BUG 4: name doesn't match actual directory name
+  - name: subchart-frontend
+    version: "0.1.0"
+    repository: "file://charts/subchart-b"
+    condition: frontend.enabled

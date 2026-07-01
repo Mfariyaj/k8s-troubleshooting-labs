@@ -1,0 +1,236 @@
+// Jenkinsfile for Lab 15 - Pipeline Memory Leak
+// This pipeline demonstrates common Groovy/CPS memory leak patterns
+// that will eventually OOM kill the Jenkins master
+//
+// BUG 1: Serializable closure captures entire workspace file listing (large List<String>)
+// BUG 2: @NonCPS annotation missing on data-processing methods that handle large collections
+// BUG 3: readFile() in a loop without releasing references — Strings accumulate in heap
+// BUG 4: GString interpolation creating massive string objects in CPS-transformed code
+// BUG 5: CPS-serialized closures retaining references to large objects
+
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'BUILD_TARGET', defaultValue: 'all-modules', description: 'Build target')
+        string(name: 'LOG_LEVEL', defaultValue: 'DEBUG', description: 'Log verbosity')
+        integer(name: 'ITERATIONS', defaultValue: 50, description: 'Number of processing iterations')
+    }
+
+    environment {
+        WORKSPACE_DATA = '/var/jenkins_home/workspace/memory-lab'
+        REPORTS_DIR = 'reports'
+        MAX_HEAP = '256m'
+    }
+
+    stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    // Create test data to trigger memory pressure
+                    sh 'mkdir -p reports test-data'
+                    sh 'for i in $(seq 1 500); do dd if=/dev/urandom bs=1024 count=10 2>/dev/null | base64 > test-data/file_$i.txt; done'
+                    echo "Created 500 test data files"
+                }
+            }
+        }
+
+        stage('Process Files - Memory Leak Pattern 1') {
+            steps {
+                script {
+                    // BUG: This closure captures the ENTIRE file listing in a serializable context
+                    // The CPS transform will serialize this entire List after every step
+                    // Each serialization checkpoint saves the full list to disk AND keeps it in memory
+
+                    // LEAK: sh() returns stdout which is captured in allFiles
+                    // This is a large string that gets serialized at every CPS checkpoint
+                    def allFiles = sh(script: 'find test-data/ -type f -name "*.txt"', returnStdout: true)
+                    def fileList = allFiles.split('\n').toList()
+
+                    echo "Processing ${fileList.size()} files..."
+
+                    // BUG: fileList is a large List captured in the closure
+                    // Every CPS suspension point serializes the entire state including fileList
+                    def results = []
+                    fileList.each { filePath ->
+                        // BUG: readFile() reads entire file content into a String variable
+                        // In a CPS pipeline, this String becomes part of the serialized state
+                        // 500 files × ~14KB each = ~7MB per serialization checkpoint
+                        def content = readFile(file: filePath.trim())
+
+                        // BUG: GString interpolation creates NEW String objects
+                        // "${content}" in a GString forces content.toString() creating a copy
+                        def processed = "PROCESSED: ${content}\nFILE: ${filePath}\nTIMESTAMP: ${new Date()}"
+
+                        // BUG: Accumulating results in a List that is ALSO serialized at each checkpoint
+                        results.add([
+                            file: filePath,
+                            size: content.length(),
+                            hash: content.hashCode(),
+                            processed: processed  // HUGE string kept in memory
+                        ])
+                    }
+
+                    echo "Processed ${results.size()} files"
+                    // results is now holding ~7MB of data in CPS-serialized state
+                }
+            }
+        }
+
+        stage('Analyze Data - Memory Leak Pattern 2') {
+            steps {
+                script {
+                    // BUG: This method should be @NonCPS but it's in a pipeline script block
+                    // The CPS transform wraps each line in a continuation, and the intermediate
+                    // data structures are all serialized
+                    
+                    def analysisResults = []
+                    
+                    for (int i = 0; i < params.ITERATIONS; i++) {
+                        // BUG: readFile in a loop — each iteration allocates a new String
+                        // Garbage collection can't clean them because CPS holds references
+                        def fileContent = readFile(file: "test-data/file_${i + 1}.txt")
+                        
+                        // BUG: Processing large strings without @NonCPS
+                        // The CPS transform serializes state BETWEEN each line execution
+                        def lines = fileContent.split('\n')
+                        def wordCount = lines.collect { it.split(/\s+/).length }.sum()
+                        def charCount = fileContent.length()
+                        
+                        // BUG: Building a large GString — forces string copy
+                        def report = """
+                        =========================================
+                        Analysis Report for file_${i + 1}.txt
+                        =========================================
+                        Word Count: ${wordCount}
+                        Character Count: ${charCount}
+                        Line Count: ${lines.length}
+                        Content Hash: ${fileContent.hashCode()}
+                        Content Preview: ${fileContent.take(500)}
+                        Full Content Length: ${fileContent.length()} bytes
+                        Processing Time: ${new Date()}
+                        =========================================
+                        """
+                        
+                        // BUG: analysisResults grows unbounded and is serialized each iteration
+                        analysisResults.add(report)
+                        
+                        // This sleep causes a CPS suspension — triggering state serialization
+                        // Every time this executes, the ENTIRE analysisResults list is serialized
+                        sleep(time: 100, unit: 'MILLISECONDS')
+                    }
+                    
+                    echo "Generated ${analysisResults.size()} reports"
+                    echo "Total report data: ${analysisResults.join('').length()} characters"
+                }
+            }
+        }
+
+        stage('Aggregate Results - Memory Leak Pattern 3') {
+            steps {
+                script {
+                    // BUG: Closure captures variable from outer scope
+                    // This creates a serializable reference chain that holds everything
+                    
+                    def masterReport = new StringBuilder()
+                    def allMetrics = [:]
+                    
+                    // BUG: This closure is CPS-transformed and captures masterReport
+                    // Every time it's serialized, the entire StringBuilder (growing) is included
+                    def processChunk = { chunkFiles ->
+                        chunkFiles.each { f ->
+                            def content = readFile(file: f.trim())
+                            masterReport.append(content)
+                            masterReport.append("\n---SEPARATOR---\n")
+                            
+                            // BUG: allMetrics map grows with each file
+                            allMetrics[f] = [
+                                size: content.length(),
+                                lines: content.split('\n').length,
+                                // BUG: Storing content hash AND preview creates double references
+                                preview: content.take(200),
+                                fullContent: content  // SEVERE: storing full content in map!
+                            ]
+                        }
+                    }
+                    
+                    def files = sh(script: 'ls test-data/*.txt | head -100', returnStdout: true).split('\n')
+                    
+                    // Process in chunks — but each chunk accumulates in masterReport
+                    def chunks = files.toList().collate(10)
+                    chunks.each { chunk ->
+                        processChunk(chunk)
+                        // CPS suspension — serializes masterReport + allMetrics
+                        echo "Processed chunk of ${chunk.size()} files. Total report size: ${masterReport.length()}"
+                    }
+                    
+                    // Final report — masterReport can be 100MB+ at this point
+                    writeFile(file: "${REPORTS_DIR}/master-report.txt", text: masterReport.toString())
+                    echo "Master report written: ${masterReport.length()} characters"
+                }
+            }
+        }
+
+        stage('Generate Summary - Memory Leak Pattern 4') {
+            steps {
+                script {
+                    // BUG: Using collect/findAll on large dataset without @NonCPS
+                    // Each intermediate collection is serialized by CPS
+                    
+                    def allFileContents = sh(
+                        script: 'cat test-data/*.txt',
+                        returnStdout: true
+                    )
+                    
+                    // BUG: allFileContents is a MASSIVE string (5MB+)
+                    // Being in CPS context means it's serialized after every step
+                    
+                    // BUG: split() creates a huge array from a huge string — 2x memory
+                    def allLines = allFileContents.split('\n')
+                    
+                    // BUG: collect() creates another copy — 3x memory
+                    def processedLines = allLines.collect { line ->
+                        "PROCESSED [${new Date()}]: ${line}"
+                    }
+                    
+                    // BUG: join() creates yet another massive string — 4x memory
+                    def finalOutput = processedLines.join('\n')
+                    
+                    writeFile(file: "${REPORTS_DIR}/final-summary.txt", text: finalOutput)
+                    
+                    echo "Summary complete: ${finalOutput.length()} characters"
+                    echo "Total lines processed: ${processedLines.size()}"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo "Pipeline complete"
+                // BUG: archiveArtifacts on massive report files adds to memory pressure
+                archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+                sh 'rm -rf test-data reports'
+            }
+        }
+        failure {
+            echo """
+            ============================================================
+            PIPELINE FAILED — POSSIBLE OOM
+            ============================================================
+            If Jenkins crashed or this build was killed:
+            1. Check 'java.lang.OutOfMemoryError: Java heap space' in logs
+            2. Check if the Jenkins master was OOM-killed (docker inspect)
+            3. Review memory usage patterns with jcmd or jstat
+            
+            Root causes in this pipeline:
+            - CPS-serialized closures holding large data
+            - readFile() in loops without releasing references
+            - GString interpolation doubling memory usage
+            - Missing @NonCPS on data-processing code
+            ============================================================
+            """
+        }
+    }
+}

@@ -1,0 +1,61 @@
+# PipelineRun — triggers the build-deploy-pipeline
+#
+# BUG: deploy-targets is passed as a string "staging,production"
+# but the Pipeline defines it as type: array
+# Should be:
+#   - name: deploy-targets
+#     value:
+#       - staging
+#       - production
+#
+# BUG: Workspace PVC uses ReadWriteOnce — this prevents parallel tasks
+# (code-lint and unit-test both run after clone, sharing the same PVC)
+# ReadWriteOnce means only one pod can mount it at a time
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: build-deploy-run-001
+  namespace: ci
+spec:
+  pipelineRef:
+    name: build-deploy-pipeline
+  params:
+    - name: git-url
+      value: "https://github.com/acme-corp/myapp.git"
+    - name: git-revision
+      value: "main"
+    - name: image-registry
+      value: "ghcr.io/acme-corp"
+    # BUG: Passing a string value but Pipeline param type is "array"
+    - name: deploy-targets
+      value: "staging"
+    - name: run-security-scan
+      value: "true"
+
+  workspaces:
+    - name: shared-workspace
+      persistentVolumeClaim:
+        claimName: pipeline-workspace-pvc
+    - name: docker-credentials
+      secret:
+        secretName: docker-registry-credentials
+
+---
+# PVC for shared workspace
+# BUG: ReadWriteOnce accessMode prevents parallel task execution
+# Tasks "code-lint" and "unit-test" both run after "clone" (in parallel)
+# but RWO means only ONE pod can mount this PVC at a time
+# This causes one of the parallel tasks to be stuck in Pending state
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-workspace-pvc
+  namespace: ci
+spec:
+  accessModes:
+    # BUG: Should be ReadWriteMany (RWX) for parallel task access
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: gp2

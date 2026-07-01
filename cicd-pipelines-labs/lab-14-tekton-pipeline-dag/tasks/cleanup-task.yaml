@@ -1,0 +1,20 @@
+# Cleanup task used in 'finally' block
+# BUG: Finally tasks cannot access workspaces in Tekton < v0.50
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup-workspace
+  namespace: ci
+spec:
+  workspaces:
+    - name: source
+      description: Workspace to clean up
+
+  steps:
+    - name: cleanup
+      image: alpine:3.19
+      script: |
+        #!/bin/sh
+        echo "Cleaning up workspace..."
+        rm -rf $(workspaces.source.path)/*
+        echo "Workspace cleaned."

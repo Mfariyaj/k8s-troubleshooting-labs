@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: mtls-nginx
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/certs:ro
+    depends_on:
+      - backend
+    networks:
+      - mtls-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "-q", "-O", "/dev/null", "https://localhost:8443/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    image: nginx:1.25-alpine
+    container_name: mtls-backend
+    expose:
+      - "8080"
+    volumes:
+      - ./backend.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - mtls-net
+
+  # Note: No OCSP responder service - this is intentional (BUG)
+  # The nginx.conf references http://ocsp.internal.company.com:8080/ocsp
+  # which is unreachable from this network
+
+networks:
+  mtls-net:
+    driver: bridge

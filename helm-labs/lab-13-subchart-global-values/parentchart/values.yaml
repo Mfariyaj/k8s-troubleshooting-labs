@@ -1,0 +1,25 @@
+# Parent chart values
+global:
+  imageRegistry: registry.example.com
+  imagePullSecrets:
+    - name: regcred
+  storageClass: gp3
+  environment: production
+
+# BUG: condition key in Chart.yaml is 'subchart-a.enabled'
+# but here we use the alias 'backend.enabled' — mismatch
+backend:
+  enabled: true
+  replicaCount: 3
+
+# BUG: dependency name is 'subchart-frontend' but values key should match
+frontend:
+  enabled: true
+  replicaCount: 2
+
+# This should override subchart defaults via alias
+# BUG: Using alias name vs chart name inconsistently
+subchart-a:
+  service:
+    type: LoadBalancer
+    port: 9090

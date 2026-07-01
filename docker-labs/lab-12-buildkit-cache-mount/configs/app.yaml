@@ -1,0 +1,7 @@
+app:
+  port: 8080
+  env: production
+database:
+  host: postgres
+  port: 5432
+  name: myapp

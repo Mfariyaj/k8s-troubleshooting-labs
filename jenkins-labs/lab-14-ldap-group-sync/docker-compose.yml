@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:2.426.1-lts
+    container_name: jenkins-ldap-lab
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs
+      - LDAP_ADMIN_PASSWORD=admin-secret
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - ./casc:/var/jenkins_home/casc_configs:ro
+    depends_on:
+      openldap:
+        condition: service_healthy
+    networks:
+      - jenkins-net
+    restart: unless-stopped
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap-lab
+    ports:
+      - "389:389"
+      - "636:636"
+    environment:
+      - LDAP_ORGANISATION=Company Internal
+      - LDAP_DOMAIN=company.internal
+      - LDAP_BASE_DN=dc=company,dc=internal
+      - LDAP_ADMIN_PASSWORD=admin-secret
+      - LDAP_READONLY_USER=true
+      - LDAP_READONLY_USER_USERNAME=readonly
+      - LDAP_READONLY_USER_PASSWORD=readonly-pass
+    volumes:
+      - ldap-data:/var/lib/ldap
+      - ldap-config:/etc/ldap/slapd.d
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=company,dc=internal", "-D", "cn=admin,dc=company,dc=internal", "-w", "admin-secret"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jenkins-net
+
+  phpldapadmin:
+    image: osixia/phpLDAPadmin:0.9.0
+    container_name: phpldapadmin-lab
+    ports:
+      - "6443:443"
+    environment:
+      - PHPLDAPADMIN_LDAP_HOSTS=openldap
+    depends_on:
+      - openldap
+    networks:
+      - jenkins-net
+
+networks:
+  jenkins-net:
+    driver: bridge
+
+volumes:
+  jenkins-data:
+  ldap-data:
+  ldap-config:

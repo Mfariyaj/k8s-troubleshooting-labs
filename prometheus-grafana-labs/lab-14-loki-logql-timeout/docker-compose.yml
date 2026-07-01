@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  loki:
+    image: grafana/loki:2.9.5
+    container_name: loki-timeout
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - loki
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.5
+    container_name: promtail-timeout
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - promtail-positions:/tmp
+    command: -config.file=/etc/promtail/config.yml
+    ports:
+      - "9080:9080"
+    depends_on:
+      - loki
+    networks:
+      - loki
+    restart: unless-stopped
+
+  log-generator:
+    image: mingrammer/flog:0.4.3
+    container_name: log-generator
+    command: -f json -d 100ms -l
+    volumes:
+      - app-logs:/var/log/app
+    networks:
+      - loki
+    restart: unless-stopped
+
+  # Second log generator to create volume
+  log-generator-2:
+    image: mingrammer/flog:0.4.3
+    container_name: log-generator-2
+    command: -f json -d 50ms -l
+    volumes:
+      - app-logs:/var/log/app
+    networks:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana-loki
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+    networks:
+      - loki
+    restart: unless-stopped
+
+volumes:
+  loki-data:
+  promtail-positions:
+  app-logs:
+  grafana-data:
+
+networks:
+  loki:
+    driver: bridge

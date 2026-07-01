@@ -1,0 +1,148 @@
+# Tekton Pipeline — CI/CD pipeline for building and deploying an application
+#
+# MULTIPLE BUGS:
+# 1. runAfter references "lint" but that task is called "code-lint" in this pipeline
+# 2. Workspace PVC is ReadWriteOnce — can't be shared between parallel tasks
+# 3. Results name mismatch: uses IMAGE_URL but build task outputs "image-url"
+# 4. Params type mismatch: "targets" defined as array but passed as string
+# 5. Finally task tries to access workspace but finally tasks can't access workspaces
+#    (fixed in Tekton v0.50+ but broken in older versions)
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-deploy-pipeline
+  namespace: ci
+spec:
+  params:
+    - name: git-url
+      type: string
+      description: The git repository URL
+    - name: git-revision
+      type: string
+      description: The git revision (branch/tag/commit)
+      default: "main"
+    - name: image-registry
+      type: string
+      description: Container registry URL
+    # BUG: This is defined as "array" type but the PipelineRun passes a single string
+    - name: deploy-targets
+      type: array
+      description: List of deployment targets
+    - name: run-security-scan
+      type: string
+      default: "true"
+
+  workspaces:
+    - name: shared-workspace
+      description: Workspace shared across tasks for source code and artifacts
+    - name: docker-credentials
+      description: Docker registry credentials
+
+  tasks:
+    - name: clone
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    - name: code-lint
+      taskRef:
+        name: golangci-lint
+      runAfter:
+        - clone
+      params:
+        - name: package
+          value: "./..."
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: unit-test
+      taskRef:
+        name: golang-test
+      runAfter:
+        - clone
+      params:
+        - name: package
+          value: "./..."
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: build-image
+      taskRef:
+        name: kaniko
+      # BUG: runAfter references "lint" but the task above is named "code-lint"
+      # This will cause: "Pipeline ci/build-deploy-pipeline can't be Run;
+      # it contains Tasks that reference other Tasks which don't exist: lint"
+      runAfter:
+        - lint
+        - unit-test
+      params:
+        - name: IMAGE
+          value: $(params.image-registry)/app:$(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: docker-credentials
+
+    - name: security-scan
+      taskRef:
+        name: trivy-scanner
+      when:
+        - input: $(params.run-security-scan)
+          operator: in
+          values: ["true"]
+      runAfter:
+        - build-image
+      params:
+        - name: IMAGE_URL
+          # BUG: Results name mismatch!
+          # The kaniko task outputs "image-url" (lowercase with hyphen)
+          # but this references "IMAGE_URL" (uppercase with underscore)
+          value: $(tasks.build-image.results.IMAGE_URL)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: deploy
+      taskRef:
+        name: kubectl-deploy
+      runAfter:
+        - security-scan
+      params:
+        - name: image
+          value: $(tasks.build-image.results.IMAGE_URL)
+        # BUG: Pipeline param "deploy-targets" is type: array
+        # but this task param expects type: string
+        # This creates a type mismatch error
+        - name: targets
+          value: $(params.deploy-targets)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+  # BUG: Finally tasks cannot access workspaces in Tekton < v0.50
+  # This will fail with: "Finally task 'cleanup' has workspace... which is not allowed"
+  finally:
+    - name: cleanup
+      taskRef:
+        name: cleanup-workspace
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+    - name: notify
+      taskRef:
+        name: slack-notify
+      params:
+        - name: status
+          value: $(tasks.deploy.status)
+        - name: pipeline-name
+          value: $(context.pipeline.name)

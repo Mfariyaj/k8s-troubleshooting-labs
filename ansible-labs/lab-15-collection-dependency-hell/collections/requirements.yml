@@ -1,0 +1,17 @@
+---
+# Secondary requirements file in collections/ directory
+# BUG: This file has DIFFERENT version constraints than the root requirements.yml
+# ansible-galaxy may read this one OR the root one depending on how it's invoked
+
+collections:
+  # This wants latest but root file wants <3.0.0 - CONFLICT
+  - name: community.general
+    version: ">=5.0.0"
+
+  # This wants 3.x but root file wants <2.0.0 - CONFLICT
+  - name: community.docker
+    version: ">=3.0.0,<4.0.0"
+
+  # Different version than root
+  - name: ansible.posix
+    version: ">=1.5.0"

@@ -1,0 +1,102 @@
+# Actions Runner Controller - HorizontalRunnerAutoscaler
+# This deploys self-hosted runners that auto-scale based on workflow jobs
+#
+# MULTIPLE BUGS:
+# 1. Runner label is "self-hosted" but workflow uses "custom-runner"
+# 2. minReplicas=0 with scaleUpTriggers delay 300s means cold-start delay
+# 3. Runner is NOT ephemeral — stale workspace persists between jobs
+# 4. dockerdWithinRunnerContainer=true but required volumes not mounted
+# 5. Registration token hardcoded and expired
+---
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: self-hosted-runner
+  namespace: actions-runner-system
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: self-hosted-runner
+    spec:
+      # BUG: Repository uses wrong org/repo name
+      repository: acme-corp/infra-deploy
+      # BUG: Labels don't match what the workflow uses (runs-on: custom-runner)
+      # The runner registers with label "self-hosted" only
+      labels:
+        - self-hosted
+        - linux
+      # BUG: ephemeral is NOT set to true
+      # This means the runner workspace is NOT cleaned between jobs
+      # Stale files from previous runs can cause failures
+      # ephemeral: true  # <-- This should be uncommented
+
+      # BUG: dockerdWithinRunnerContainer requires Docker-in-Docker setup
+      # but the necessary volume mounts and security context are missing
+      dockerdWithinRunnerContainer: true
+
+      # BUG: Hardcoded registration token — these expire after 1 hour!
+      # Should use a GitHub App or PAT-based authentication instead
+      env:
+        - name: RUNNER_REGISTRATION_TOKEN
+          value: "AABCDEFGHIJKLMNOPQRSTUVWXYZ234567890"
+        - name: RUNNER_WORKDIR
+          value: "/runner/_work"
+
+      resources:
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+        requests:
+          cpu: "2"
+          memory: "4Gi"
+
+      # Missing volume mounts for DinD
+      # volumeMounts:
+      #   - name: docker-sock
+      #     mountPath: /var/run/docker.sock
+      #   - name: docker-storage
+      #     mountPath: /var/lib/docker
+
+      # Missing volumes
+      # volumes:
+      #   - name: docker-sock
+      #     emptyDir: {}
+      #   - name: docker-storage
+      #     emptyDir: {}
+---
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: HorizontalRunnerAutoscaler
+metadata:
+  name: self-hosted-runner-autoscaler
+  namespace: actions-runner-system
+spec:
+  scaleTargetRef:
+    name: self-hosted-runner
+
+  # BUG: minReplicas=0 means NO runners are available until scale-up triggers
+  # Combined with scaleUpTriggers duration of 300s, there's a 5-minute cold start
+  # Jobs will appear "stuck" waiting for a runner during this period
+  minReplicas: 0
+  maxReplicas: 10
+
+  scaleUpTriggers:
+    - githubEvent:
+        workflowJob: {}
+      # BUG: 300s (5 min) duration means runner stays alive for only 5 minutes
+      # after being triggered — complex pipelines will lose their runner mid-job
+      duration: "300s"
+      amount: 1
+
+  scaleDownDelaySecondsAfterScaleOut: 60
+
+  metrics:
+    - type: TotalNumberOfQueuedAndInProgressWorkflowRuns
+      repositoryNames:
+        # BUG: Repository name mismatch
+        - acme-corp/infra-deploy
+      scaleUpThreshold: "1"
+      scaleDownThreshold: "0"
+      scaleUpFactor: "2"
+      scaleDownFactor: "0.5"

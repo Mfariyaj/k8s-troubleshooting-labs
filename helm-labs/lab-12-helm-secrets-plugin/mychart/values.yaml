@@ -1,0 +1,16 @@
+replicaCount: 1
+
+image:
+  repository: myapp/backend
+  tag: "2.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Non-sensitive defaults
+config:
+  logLevel: info
+  appPort: 8080
+  environment: production

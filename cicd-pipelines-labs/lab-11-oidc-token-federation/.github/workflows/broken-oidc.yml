@@ -1,0 +1,51 @@
+# BUG 1: Missing 'id-token: write' permission - workflow cannot request OIDC token
+# BUG 2: Role session duration (7200s) exceeds role's MaxSessionDuration (3600s)
+name: Deploy to AWS via OIDC
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # BUG: id-token: write is missing! Without this, the OIDC token request will fail
+  # with "Error: Could not assume role with OIDC" because no token can be generated
+
+env:
+  AWS_REGION: us-east-1
+  ROLE_ARN: arn:aws:iam::123456789012:role/github-actions-deploy
+
+jobs:
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    # No id-token permission at job level either
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-${{ github.run_id }}
+          # BUG: Requesting 7200s but role MaxSessionDuration is 3600s
+          role-duration-seconds: 7200
+
+      - name: Deploy with Terraform
+        run: |
+          cd terraform
+          terraform init
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+
+      - name: Run integration tests
+        run: |
+          ./scripts/integration-test.sh
+
+      - name: Notify deployment
+        if: success()
+        run: |
+          echo "Deployment successful for commit ${{ github.sha }}"

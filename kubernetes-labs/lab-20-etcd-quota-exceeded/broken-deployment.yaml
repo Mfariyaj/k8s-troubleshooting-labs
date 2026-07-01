@@ -1,0 +1,184 @@
+---
+# A Job that generates a large number of ConfigMaps to simulate etcd space exhaustion
+# In a real scenario, runaway operators, event storms, or config leaks cause this
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: configmap-generator
+  namespace: lab-20-etcd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: configmap-creator
+  namespace: lab-20-etcd
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: configmap-creator-binding
+  namespace: lab-20-etcd
+subjects:
+  - kind: ServiceAccount
+    name: configmap-generator
+    namespace: lab-20-etcd
+roleRef:
+  kind: Role
+  name: configmap-creator
+  apiGroup: rbac.authorization.k8s.io
+---
+# Job that creates many large configmaps to fill up namespace resources
+# This simulates what happens when an operator or CI/CD pipeline leaks configmaps
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: configmap-flood
+  namespace: lab-20-etcd
+  labels:
+    app: configmap-flood
+    purpose: simulate-etcd-pressure
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: configmap-flood
+    spec:
+      serviceAccountName: configmap-generator
+      restartPolicy: Never
+      containers:
+        - name: generator
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "🔥 Simulating etcd space pressure by creating many ConfigMaps..."
+              echo "In production, this would be caused by:"
+              echo "  - Runaway operators creating resources in a loop"
+              echo "  - CI/CD pipelines leaking ConfigMaps/Secrets on each deploy"
+              echo "  - Event storms from unhealthy controllers"
+              echo "  - Helm release history accumulation"
+              echo ""
+              
+              # Generate large configmaps (512KB each x 200 = ~100MB of data)
+              # In real clusters, etcd default quota is 2GB — this simulates filling it
+              CREATED=0
+              for i in $(seq 1 200); do
+                # Generate 512KB of data per configmap
+                DATA=$(head -c 524288 /dev/urandom | base64 | head -c 524288)
+                
+                cat <<EOF | kubectl apply -f - 2>/dev/null
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: leaked-config-${i}
+                namespace: lab-20-etcd
+                labels:
+                  app: configmap-flood
+                  leaked: "true"
+                  batch: "$(date +%s)"
+                annotations:
+                  description: "Orphaned configmap from pipeline run #${i}"
+                  created-by: "ci-pipeline-v2"
+                  pipeline-run: "run-${i}-$(date +%Y%m%d)"
+              data:
+                config.json: |
+                  {"pipeline_run": ${i}, "timestamp": "$(date -Iseconds)", "status": "completed"}
+                large-payload: "${DATA:0:65536}"
+              EOF
+                
+                CREATED=$((CREATED + 1))
+                if [ $((CREATED % 25)) -eq 0 ]; then
+                  echo "Created $CREATED configmaps..."
+                fi
+              done
+              
+              echo ""
+              echo "✅ Created $CREATED configmaps."
+              echo ""
+              echo "Total ConfigMaps in namespace:"
+              kubectl get configmaps -n lab-20-etcd --no-headers | wc -l
+              echo ""
+              echo "📊 In a real scenario, the API server would now return:"
+              echo "  'etcdserver: mvcc: database space exceeded'"
+              echo ""
+              echo "The cluster would exhibit these symptoms:"
+              echo "  - kubectl create/apply commands fail"
+              echo "  - Pods cannot be scheduled (scheduler can't write bindings)"
+              echo "  - No new events can be recorded"
+              echo "  - Existing running pods continue to work"
+              echo "  - Reads still succeed (GET, LIST)"
+---
+# A deployment that will work initially but represents the workload
+# that would fail to scale if etcd is full
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: critical-api
+  namespace: lab-20-etcd
+  labels:
+    app: critical-api
+    tier: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: critical-api
+  template:
+    metadata:
+      labels:
+        app: critical-api
+    spec:
+      containers:
+        - name: api-server
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+---
+# Service for the critical API
+apiVersion: v1
+kind: Service
+metadata:
+  name: critical-api
+  namespace: lab-20-etcd
+spec:
+  selector:
+    app: critical-api
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+# HPA that would fail to create new replicas when etcd is full
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: critical-api-hpa
+  namespace: lab-20-etcd
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: critical-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

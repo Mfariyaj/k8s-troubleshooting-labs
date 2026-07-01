@@ -1,0 +1,58 @@
+# Kaniko build task — builds container images without Docker daemon
+# Note: The results field uses lowercase "image-url" but the Pipeline
+# references it as "IMAGE_URL" — this is the mismatch bug
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+  namespace: ci
+spec:
+  params:
+    - name: IMAGE
+      description: Name (reference) of the image to build
+      type: string
+    - name: DOCKERFILE
+      description: Path to the Dockerfile
+      default: "./Dockerfile"
+      type: string
+    - name: CONTEXT
+      description: Build context directory
+      default: "."
+      type: string
+
+  workspaces:
+    - name: source
+      description: Source code workspace
+    - name: dockerconfig
+      description: Docker config for registry authentication
+      optional: true
+
+  results:
+    # BUG: This outputs "image-url" (lowercase, hyphenated)
+    # but Pipeline references $(tasks.build-image.results.IMAGE_URL)
+    - name: image-url
+      description: The URL of the built image
+    - name: image-digest
+      description: The digest of the built image
+
+  steps:
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:latest
+      env:
+        - name: DOCKER_CONFIG
+          value: /tekton/home/.docker
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile=$(params.DOCKERFILE)
+        - --context=$(workspaces.source.path)/$(params.CONTEXT)
+        - --destination=$(params.IMAGE)
+        - --digest-file=$(results.image-digest.path)
+      securityContext:
+        runAsUser: 0
+
+    - name: write-url
+      image: bash:5.2
+      script: |
+        #!/usr/bin/env bash
+        echo -n "$(params.IMAGE)" | tee $(results.image-url.path)

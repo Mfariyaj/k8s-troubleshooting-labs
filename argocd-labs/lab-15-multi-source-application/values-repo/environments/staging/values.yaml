@@ -1,0 +1,41 @@
+# Staging values for platform-service
+# Repository: https://git.example.com/platform/helm-values.git
+
+global:
+  environment: staging
+  cluster: staging-eu-west-1
+  imageRegistry: 123456789012.dkr.ecr.eu-west-1.amazonaws.com
+
+replicaCount: 2
+
+image:
+  repository: platform/service
+  tag: "2.1.0-rc1"
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: api.staging.platform.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+monitoring:
+  enabled: true
+  serviceMonitor: true
+  alerts: false

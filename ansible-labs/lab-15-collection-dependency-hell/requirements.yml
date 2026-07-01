@@ -1,0 +1,29 @@
+---
+# Requirements file with CONFLICTING version constraints
+# BUG 1: community.general pinned to <3.0.0 but playbook uses 3.2.0+ features
+# BUG 2: community.docker version conflict with community.general dependency
+# BUG 3: ansible.posix version incompatible with ansible-core version
+
+collections:
+  # BUG: Pinned to old version that doesn't have random_string module
+  # random_string was added in 3.2.0, but this forces <3.0.0
+  - name: community.general
+    version: ">=2.5.0,<3.0.0"
+    source: https://galaxy.ansible.com
+
+  # BUG: community.docker 1.x doesn't support docker_network state options
+  # used in the playbook. Needs 2.0.0+ but is constrained here
+  - name: community.docker
+    version: ">=1.0.0,<2.0.0"
+    source: https://galaxy.ansible.com
+
+  # BUG: Old ansible.posix version has different sysctl interface
+  - name: ansible.posix
+    version: "1.1.0"
+    source: https://galaxy.ansible.com
+
+  # This collection has a dependency on community.general >=4.0.0
+  # which CONFLICTS with the community.general constraint above
+  - name: community.crypto
+    version: ">=2.0.0"
+    source: https://galaxy.ansible.com

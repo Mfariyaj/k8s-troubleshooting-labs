@@ -1,0 +1,59 @@
+version: '3.8'
+
+# PID Namespace Exhaustion Lab
+# Multiple workers share host PID namespace and fork aggressively
+# No pids_limit configured, no init process, no zombie reaping
+
+services:
+  # BUG: pid: "host" shares host PID namespace — container PIDs count against host limit
+  worker-alpha:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-alpha
+    pid: "host"
+    # BUG: No pids_limit set — can consume unlimited PIDs
+    # pids_limit: 100
+    # BUG: No init: true — no PID 1 zombie reaper
+    # init: true
+    environment:
+      - WORKER_ID=alpha
+      - MAX_CHILDREN=1000
+    restart: unless-stopped
+
+  worker-beta:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-beta
+    pid: "host"
+    # BUG: Same issues as alpha
+    environment:
+      - WORKER_ID=beta
+      - MAX_CHILDREN=1000
+    restart: unless-stopped
+
+  worker-gamma:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-gamma
+    pid: "host"
+    # BUG: Even more aggressive forking
+    environment:
+      - WORKER_ID=gamma
+      - MAX_CHILDREN=2000
+    restart: unless-stopped
+
+  # This service will fail when PIDs are exhausted
+  api-server:
+    image: nginx:alpine
+    container_name: api-server
+    pid: "host"
+    ports:
+      - "8080:80"
+    depends_on:
+      - worker-alpha
+      - worker-beta
+      - worker-gamma
+    restart: unless-stopped
