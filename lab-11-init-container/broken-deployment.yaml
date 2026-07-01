@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-app
+  namespace: lab-11
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker-app
+  template:
+    metadata:
+      labels:
+        app: worker-app
+    spec:
+      initContainers:
+      - name: wait-for-db
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nslookup database-service.lab-11.svc.cluster.local; do echo "Waiting for database..."; sleep 2; done']
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "25m"
+      - name: init-migrations
+        image: busybox:1.36
+        command: ['sh', '-c', 'wget -qO- http://migration-service:8080/run-migrations']
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "25m"
+      containers:
+      - name: app
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-sa
+  namespace: lab-10
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: lab-10
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+  namespace: lab-10
+subjects:
+- kind: ServiceAccount
+  name: wrong-sa
+  namespace: lab-10
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-app
+  namespace: lab-10
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: controller-app
+  template:
+    metadata:
+      labels:
+        app: controller-app
+    spec:
+      serviceAccountName: app-sa
+      containers:
+      - name: kubectl-container
+        image: bitnami/kubectl:latest
+        command: ["sh", "-c", "while true; do kubectl get pods -n lab-10; sleep 30; done"]
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

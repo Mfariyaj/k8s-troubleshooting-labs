@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: lab-05
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+    }
+  app.properties: |
+    server.port=8080
+    db.host=postgres-svc
+    db.port=5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-app
+  namespace: lab-05
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: config-app
+  template:
+    metadata:
+      labels:
+        app: config-app
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/nginx/conf.d
+        - name: app-properties
+          mountPath: /etc/app
+      volumes:
+      - name: config-volume
+        configMap:
+          name: app-configuration
+      - name: app-properties
+        configMap:
+          name: application-props

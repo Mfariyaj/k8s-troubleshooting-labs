@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-hungry-app
+  namespace: lab-03
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-hungry-app
+  template:
+    metadata:
+      labels:
+        app: resource-hungry-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "128Gi"
+            cpu: "64"
+          limits:
+            memory: "256Gi"
+            cpu: "128"
