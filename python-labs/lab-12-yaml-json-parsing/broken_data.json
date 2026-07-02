@@ -1,0 +1,47 @@
+{
+  "terraform_state": {
+    "version": 4,
+    "serial": 42,
+    "resources": [
+      {
+        "type": "aws_instance",
+        "name": "web_server",
+        "instances": [
+          {
+            "attributes": {
+              "id": "i-0abc123def456",
+              "ami": "ami-0c55b159cbfafe1f0",
+              "instance_type": "t3.medium",
+              "tags": {
+                "Name": "web-prod-01",
+                "Environment": "production"
+              },
+              "public_ip": "54.23.100.42",
+              "private_ip": "10.0.1.50"
+            }
+          }
+        ]
+      },
+      {
+        "type": "aws_instance",
+        "name": "db_server",
+        "instances": [
+          {
+            "attributes": {
+              "id": "i-0xyz789ghi012",
+              "ami": "ami-0c55b159cbfafe1f0",
+              "instance_type": "m5.large",
+              "tags": {
+                "Name": "db-prod-01",
+                "Environment": "production"
+              },
+              "public_ip": null,
+              "private_ip": "10.0.2.100"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "extra_field": "this has a trailing comma issue"
+}

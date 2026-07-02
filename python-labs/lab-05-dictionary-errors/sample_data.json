@@ -1,0 +1,75 @@
+{
+  "apiVersion": "v1",
+  "kind": "PodList",
+  "items": [
+    {
+      "metadata": {
+        "name": "nginx-deployment-7fb96c846b-abc12",
+        "namespace": "production",
+        "labels": {
+          "app": "nginx",
+          "tier": "frontend"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "nginx",
+            "image": "nginx:1.21",
+            "ports": [
+              {"containerPort": 80, "protocol": "TCP"}
+            ],
+            "resources": {
+              "requests": {"cpu": "100m", "memory": "128Mi"},
+              "limits": {"cpu": "500m", "memory": "256Mi"}
+            }
+          }
+        ],
+        "nodeName": "worker-node-01"
+      },
+      "status": {
+        "phase": "Running",
+        "containerStatuses": [
+          {
+            "name": "nginx",
+            "ready": true,
+            "restartCount": 0,
+            "state": {"running": {"startedAt": "2024-01-15T10:00:00Z"}}
+          }
+        ]
+      }
+    },
+    {
+      "metadata": {
+        "name": "api-server-5d4f6c7b8-xyz99",
+        "namespace": "production",
+        "labels": {
+          "app": "api-server"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "myapp/api:v2.3.1",
+            "ports": [
+              {"containerPort": 3000, "protocol": "TCP"}
+            ]
+          }
+        ],
+        "nodeName": "worker-node-02"
+      },
+      "status": {
+        "phase": "CrashLoopBackOff",
+        "containerStatuses": [
+          {
+            "name": "api",
+            "ready": false,
+            "restartCount": 5,
+            "state": {"waiting": {"reason": "CrashLoopBackOff"}}
+          }
+        ]
+      }
+    }
+  ]
+}

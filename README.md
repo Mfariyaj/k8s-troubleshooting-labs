@@ -1,6 +1,6 @@
 # 🔧 DevOps Troubleshooting Labs
 
-## 200+ Real-World Broken Scenarios for DevOps Engineers
+## 215+ Real-World Broken Scenarios for DevOps Engineers
 
 ---
 
@@ -28,8 +28,9 @@ Whether it's a crashing Kubernetes pod, a failing Terraform plan, a misconfigure
 | 10 | Nginx/HAProxy | 15 | `nginx-haproxy-labs/` | ✅ Available |
 | 11 | CI/CD Pipelines | 15 | `cicd-pipelines-labs/` | ✅ Available |
 | 12 | Spinnaker | 15 | `spinnaker-labs/` | ✅ Available |
+| 13 | Python | 15 | `python-labs/` | ✅ Available |
 
-**Total: 200 labs across 12 categories**
+**Total: 215 labs across 13 categories**
 
 ---
 
@@ -143,6 +144,7 @@ Track your completion across all categories:
 | ☐ Nginx/HAProxy | _ /15 | 15 | ░░░░░░░░░░ |
 | ☐ CI/CD Pipelines | _ /15 | 15 | ░░░░░░░░░░ |
 | ☐ Spinnaker | _ /15 | 15 | ░░░░░░░░░░ |
+| ☐ Python | _ /15 | 15 | ░░░░░░░░░░ |
 
 ---
 
