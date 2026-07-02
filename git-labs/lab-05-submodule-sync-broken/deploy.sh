@@ -8,6 +8,11 @@ LAB_DIR="/tmp/git-lab-05"
 rm -rf "$LAB_DIR"
 mkdir -p "$LAB_DIR"
 
+# Allow file:// protocol for local submodules (Git 2.38+)
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0=protocol.file.allow
+export GIT_CONFIG_VALUE_0=always
+
 # Create the "library" submodule repository
 LIB_DIR="$LAB_DIR/shared-lib.git"
 mkdir -p "$LIB_DIR"

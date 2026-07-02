@@ -5,6 +5,8 @@ set -e
 
 LAB_DIR="/tmp/git-lab-06"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 rm -rf "$LAB_DIR"
 mkdir -p "$LAB_DIR"
 cd "$LAB_DIR"
@@ -14,7 +16,6 @@ git config user.email "dev@example.com"
 git config user.name "Lab User"
 
 # Copy the test script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cp "$SCRIPT_DIR/test.sh" "$LAB_DIR/test.sh"
 chmod +x "$LAB_DIR/test.sh"
 git add test.sh
