@@ -1,0 +1,72 @@
+# Jenkins Plugins Required for All Labs
+# Install all at once using:
+#   docker exec jenkins-lab-01 jenkins-plugin-cli --plugins $(cat plugins.txt | tr '\n' ' ')
+#
+# Or use this file when building a custom Jenkins Docker image:
+#   FROM jenkins/jenkins:lts
+#   COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
+#   RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
+
+# === Core Pipeline Plugins ===
+docker-workflow
+credentials-binding
+pipeline-groovy-lib
+pipeline-utility-steps
+pipeline-stage-view
+pipeline-build-step
+pipeline-input-step
+pipeline-milestone-step
+
+# === Git & GitHub ===
+git
+git-parameter
+github
+github-branch-source
+
+# === Docker ===
+docker-plugin
+docker-commons
+
+# === Kubernetes ===
+kubernetes
+kubernetes-credentials
+kubernetes-client-api
+
+# === Authentication & Authorization ===
+ldap
+matrix-auth
+role-strategy
+authorize-project
+
+# === Configuration as Code ===
+configuration-as-code
+
+# === Workspace & Cleanup ===
+ws-cleanup
+
+# === Notifications ===
+slack
+email-ext
+
+# === Code Quality & Testing ===
+junit
+htmlpublisher
+cobertura
+warnings-ng
+coverage
+
+# === Blue Ocean (Modern UI) ===
+blueocean
+
+# === Utility Plugins ===
+ansicolor
+timestamper
+rebuild
+http_request
+job-dsl
+ssh-agent
+throttle-concurrents
+
+# === Build Tools ===
+gradle
+ant

@@ -82,20 +82,48 @@ Install these plugins from **Manage Jenkins → Plugins → Available plugins**:
 | 15 | *(none)* | Tests Groovy/CPS memory patterns |
 
 ### Quick Plugin Install (for all labs at once):
-After Jenkins starts, go to: **Manage Jenkins → Plugins → Available plugins**
 
-Search and install these:
+**Option 1: One-command install (Recommended):**
+```bash
+# After Jenkins is running (./deploy.sh), install ALL plugins:
+./install-plugins.sh
+# Installs 40+ plugins and restarts Jenkins automatically (~3 min)
+```
+
+**Option 2: Pre-built Docker image (zero setup — no wizard, no manual install):**
+```bash
+# Build once, use forever:
+docker build -t jenkins-labs .
+docker run -d -p 8080:8080 -p 50000:50000 --name jenkins-labs jenkins-labs
+# Login immediately: admin / admin
+```
+
+**Option 3: Manual install from Jenkins UI:**
+Go to: **Manage Jenkins → Plugins → Available plugins**, search and install:
 - ✅ Docker Pipeline
 - ✅ Credentials Binding Plugin
 - ✅ Pipeline: Shared Groovy Libraries
-- ✅ GitHub Integration
+- ✅ GitHub Integration + GitHub Branch Source
 - ✅ Workspace Cleanup
 - ✅ Configuration as Code
-- ✅ Kubernetes
+- ✅ Kubernetes + Kubernetes Credentials
 - ✅ LDAP
-- ✅ Matrix Authorization Strategy
+- ✅ Matrix Authorization Strategy + Role-based Authorization Strategy
+- ✅ Blue Ocean (modern pipeline visualization)
+- ✅ Slack Notification + Email Extension
+- ✅ AnsiColor + Timestamper (better console output)
+- ✅ JUnit + HTML Publisher + Cobertura + Warnings NG (test reports)
+- ✅ Job DSL + Pipeline Utility Steps
+- ✅ HTTP Request + SSH Agent
+- ✅ Git Parameter
+- ✅ Throttle Concurrent Builds
 
 Then **restart Jenkins** when prompted.
+
+### 📦 Plugin Reference Files:
+- [`plugins.txt`](plugins.txt) — Complete plugin list (use with `jenkins-plugin-cli`)
+- [`install-plugins.sh`](install-plugins.sh) — One-command auto-installer
+- [`Dockerfile`](Dockerfile) — Build pre-configured Jenkins image
 
 ---
 
