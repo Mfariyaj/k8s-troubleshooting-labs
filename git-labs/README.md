@@ -1,5 +1,35 @@
 # 🔧 Git & GitHub Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- Git 2.30+ installed
+
+- No network required (all labs are local)
+
+
+
+### Steps:
+
+1. `cd lab-01-merge-conflict-resolution && ./deploy.sh`
+
+2. Navigate to the created repo: `cd /tmp/git-lab-01/`
+
+3. Investigate: `git status`, `git log --oneline --graph`
+
+4. Fix using git commands (merge, rebase, reset, reflog, etc.)
+
+5. Cleanup: `./cleanup.sh`
+
+
+
+---
+
+
 ## 15 Real-World Broken Git Scenarios for DevOps Engineers
 
 ---

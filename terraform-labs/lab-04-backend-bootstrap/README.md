@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Setup: `./deploy.sh` (copies broken .tf files to workspace)
+2. Run: `cd workspace && terraform init && terraform plan`
+3. Observe the error in terraform output
+4. Fix the .tf files based on error message
+5. Re-run `terraform validate` or `terraform plan` to verify
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 04 - Remote Backend Bootstrap (Chicken-and-Egg Problem)
 
 ## Difficulty: ⭐⭐

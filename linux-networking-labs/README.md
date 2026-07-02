@@ -1,5 +1,39 @@
 # 🐧 Linux/Networking Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- Linux system (Ubuntu/CentOS) or WSL2
+
+- Root/sudo access (some labs modify system state)
+
+- Standard tools: `df`, `ps`, `ss`, `iptables`, `systemctl`
+
+
+
+### Steps:
+
+1. `cd lab-01-disk-full && sudo ./deploy.sh`
+
+2. Investigate using Linux CLI tools
+
+3. Find and fix the issue
+
+4. Cleanup: `sudo ./cleanup.sh`
+
+
+
+⚠️ **Safety:** All labs use /tmp or isolated resources. No permanent system damage.
+
+
+
+---
+
+
 ## 10 Real-World Broken Scenarios for Linux & Networking
 
 ---

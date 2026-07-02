@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (starts Prometheus/Grafana via docker-compose)
+2. Open Prometheus: http://localhost:9090 → Status → Targets
+3. Open Grafana: http://localhost:3000 (admin/admin)
+4. Observe what's broken (targets DOWN, alerts not firing, dashboards empty)
+5. Fix the configuration files and restart
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 03: Service Discovery RBAC Misconfiguration
 
 ## Difficulty: ⭐⭐⭐ Hard

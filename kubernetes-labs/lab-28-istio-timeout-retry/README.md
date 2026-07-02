@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy the broken state: `./deploy.sh`
+2. Check pod status: `kubectl get pods -n <namespace>`
+3. Investigate: `kubectl describe pod`, `kubectl logs`, `kubectl get events`
+4. Identify the root cause from error messages
+5. Fix the YAML and re-apply
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 28: Istio Timeout & Retry Misconfiguration
 
 ## Difficulty: ⭐⭐⭐⭐

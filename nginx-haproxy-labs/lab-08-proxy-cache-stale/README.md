@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (starts Nginx/HAProxy via docker-compose)
+2. Test: `curl -v http://localhost:<port>/` to see the error
+3. Check: `docker logs <nginx-container>`, look at error.log
+4. Validate: `docker exec <container> nginx -t`
+5. Fix nginx.conf/haproxy.cfg and restart
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 08: Proxy Cache Stale - User Data Leak
 
 ## 🎯 Scenario

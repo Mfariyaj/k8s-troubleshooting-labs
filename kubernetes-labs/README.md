@@ -4,6 +4,70 @@
 
 ---
 
+## 🚀 How To Use These Labs (Step-by-Step)
+
+
+
+### Prerequisites:
+
+- `kubectl` installed and configured
+
+- A running Kubernetes cluster (minikube, kind, k3s, Docker Desktop, or EKS)
+
+- **For Istio labs (21-35):** Install Istio with `istioctl install --set profile=demo`
+
+
+
+### Step 1: Deploy a Broken Lab
+
+```bash
+
+cd lab-01-crashloopbackoff
+
+./deploy.sh
+
+```
+
+
+
+### Step 2: Investigate
+
+```bash
+
+kubectl get pods -n <namespace>
+
+kubectl describe pod <pod-name> -n <namespace>
+
+kubectl logs <pod-name> -n <namespace>
+
+kubectl get events -n <namespace> --sort-by=.lastTimestamp
+
+```
+
+
+
+### Step 3: Fix the broken YAML and re-apply
+
+```bash
+
+kubectl apply -f fixed-deployment.yaml
+
+```
+
+
+
+### Step 4: Cleanup
+
+```bash
+
+./cleanup.sh
+
+```
+
+
+
+---
+
 ## Overview
 
 These labs contain intentionally broken Kubernetes YAML deployments. Each lab creates its own namespace and deploys a broken workload that you must diagnose and fix using `kubectl` CLI.

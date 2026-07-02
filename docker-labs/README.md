@@ -6,6 +6,26 @@ These labs contain **intentionally broken** Docker configurations. Your job is t
 
 ---
 
+## 🚀 How To Use These Labs (Step-by-Step)
+
+
+
+1. `cd lab-01-dockerfile-build-failure && ./deploy.sh`
+
+2. Observe the Docker build/run error
+
+3. Check `docker logs`, `docker ps`, `docker inspect`
+
+4. Fix the Dockerfile or docker-compose.yml
+
+5. Rebuild and verify: `docker-compose up --build`
+
+6. Cleanup: `./cleanup.sh`
+
+
+
+---
+
 ## Prerequisites
 - Docker Engine 20.10+ installed
 - Docker Compose v2 installed

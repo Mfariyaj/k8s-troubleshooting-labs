@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (applies broken Application manifest)
+2. Check ArgoCD UI: `kubectl port-forward svc/argocd-server -n argocd 8443:443`
+3. Open https://localhost:8443 (admin / `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d`)
+4. See the app status (OutOfSync/Degraded/Error)
+5. Debug: `argocd app get <app-name>`, check events
+6. Fix the YAML, re-sync, verify. Check `solution.md` if stuck
+
+---
+
 # Lab 03: Hook Failure
 
 ## Difficulty: ⭐⭐ Medium

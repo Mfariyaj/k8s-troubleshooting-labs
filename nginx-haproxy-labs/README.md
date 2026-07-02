@@ -1,5 +1,39 @@
 # 🌐 Nginx/HAProxy Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- Docker & Docker Compose installed
+
+- `curl` for testing
+
+- Ports 8081-8091 available (each lab uses unique port)
+
+
+
+### Steps:
+
+1. `cd lab-01-502-bad-gateway && ./deploy.sh`
+
+2. Test: `curl -v http://localhost:8081/`
+
+3. Check logs: `docker logs <nginx-container>`
+
+4. Validate: `docker exec <container> nginx -t`
+
+5. Fix nginx.conf and restart
+
+6. Cleanup: `./cleanup.sh`
+
+
+
+---
+
+
 ## 10 Real-World Broken Scenarios for Nginx & Reverse Proxy Engineers
 
 ---

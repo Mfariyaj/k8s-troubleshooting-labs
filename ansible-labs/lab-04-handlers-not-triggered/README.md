@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (sets up environment and runs broken playbook)
+2. Read the Ansible error output carefully
+3. Investigate: Check playbook.yml, inventory, roles, templates
+4. Fix the broken configuration
+5. Re-run: `ansible-playbook playbook.yml` to verify
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 04: Handlers Not Triggered
 
 ## Difficulty: ⭐ Easy

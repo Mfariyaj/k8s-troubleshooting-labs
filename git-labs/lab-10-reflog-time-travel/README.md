@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (creates a local git repo with the broken state)
+2. Navigate: `cd /tmp/git-lab-XX/`
+3. Investigate: `git status`, `git log --oneline`, `git reflog`
+4. Fix the issue using git commands
+5. Verify your fix resolves the problem
+6. Check `solution.md` if stuck. Cleanup: `./cleanup.sh`
+
+---
+
 # Lab 10: Reflog Time Travel
 
 ## Difficulty: 🟡 Intermediate

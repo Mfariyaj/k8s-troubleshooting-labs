@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (builds and runs broken containers)
+2. Check: `docker ps`, `docker logs <container>`
+3. Test: Try `curl`, `docker exec`, check connectivity
+4. Observe the failure and identify root cause
+5. Fix the Dockerfile/docker-compose.yml and rebuild
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 11: overlay2 Disk Exhaustion — Production Host Running Out of Space
 
 ## Difficulty: ⭐⭐⭐⭐⭐ Expert

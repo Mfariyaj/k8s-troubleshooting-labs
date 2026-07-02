@@ -1,5 +1,39 @@
 # 🎯 Spinnaker Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- Spinnaker installed (via Halyard or Spinnaker Operator)
+
+- `spin` CLI installed
+
+- `hal` CLI installed (for Halyard labs)
+
+
+
+### Steps:
+
+1. `cd lab-01-halyard-config-broken && ./deploy.sh`
+
+2. Try to apply the config: `hal deploy apply`
+
+3. Read the Halyard/Spinnaker error
+
+4. Fix the configuration
+
+5. Re-deploy and verify on Spinnaker UI (http://localhost:9000)
+
+6. Cleanup: `./cleanup.sh`
+
+
+
+---
+
+
 ## 15 Real-World Broken Scenarios for Spinnaker Engineers
 
 ---

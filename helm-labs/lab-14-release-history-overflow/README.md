@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (runs helm template/install showing error)
+2. Read the Helm error output carefully
+3. Check Chart.yaml, values.yaml, and templates/ for issues
+4. Fix the chart and re-run `helm template` or `helm install --dry-run`
+5. Verify the rendered YAML is correct
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 14: Helm Release History Overflow
 
 ## Difficulty: ⭐⭐⭐⭐⭐ Expert

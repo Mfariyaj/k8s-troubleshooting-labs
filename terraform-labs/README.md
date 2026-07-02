@@ -6,6 +6,26 @@ These labs contain **intentionally broken** Terraform configurations. Your job i
 
 ---
 
+## 🚀 How To Use These Labs (Step-by-Step)
+
+
+
+1. `cd lab-01-state-lock-conflict && ./deploy.sh`
+
+2. Run `terraform init` and `terraform plan` in the workspace
+
+3. Read the error output — diagnose the issue
+
+4. Fix the .tf files
+
+5. Re-run `terraform validate` / `terraform plan` to confirm fix
+
+6. Cleanup: `./cleanup.sh`
+
+
+
+---
+
 ## Prerequisites
 - Terraform CLI installed (v1.5+)
 - AWS CLI configured (or mock credentials for simulation)

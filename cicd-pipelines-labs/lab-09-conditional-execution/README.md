@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (creates a git repo with broken workflow)
+2. Review the broken workflow YAML (.github/workflows/ or .gitlab-ci.yml)
+3. Identify the syntax errors, logic issues, or misconfiguration
+4. Fix the workflow file
+5. Validate with: `actionlint` (GitHub Actions) or CI Lint API (GitLab)
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 09: Conditional Execution Logic
 
 ## 🎯 Scenario

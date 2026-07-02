@@ -1,5 +1,35 @@
 # 🎯 Helm Chart Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- `helm` 3.x installed
+
+- For install labs: Kubernetes cluster with kubectl
+
+
+
+### Steps:
+
+1. `cd lab-01-values-override && ./deploy.sh`
+
+2. Read the `helm template` error output
+
+3. Fix Chart.yaml, values.yaml, or templates/
+
+4. Re-run: `helm template myrelease ./mychart`
+
+5. Cleanup: `./cleanup.sh`
+
+
+
+---
+
+
 ## 10 Real-World Broken Helm Charts for DevOps Engineers
 
 ---

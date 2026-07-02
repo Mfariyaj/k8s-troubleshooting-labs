@@ -1,5 +1,65 @@
 # 🚀 ArgoCD Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- Kubernetes cluster with ArgoCD installed
+
+- `argocd` CLI installed
+
+- `kubectl` configured
+
+
+
+### Install ArgoCD (if not installed):
+
+```bash
+
+kubectl create namespace argocd
+
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+```
+
+
+
+### Access ArgoCD Dashboard:
+
+```bash
+
+kubectl port-forward svc/argocd-server -n argocd 8443:443
+
+# Open https://localhost:8443
+
+# Username: admin
+
+# Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+```
+
+
+
+### Steps:
+
+1. `cd lab-01-sync-failed && ./deploy.sh`
+
+2. Check ArgoCD dashboard - see broken app status
+
+3. Debug: `argocd app get <app-name>`
+
+4. Fix the Application YAML and re-sync
+
+5. Cleanup: `./cleanup.sh`
+
+
+
+---
+
+
 ## 10 Real-World Broken ArgoCD Scenarios
 
 Each lab deploys a broken ArgoCD configuration. Your job: diagnose and fix using only `argocd` CLI and `kubectl`.

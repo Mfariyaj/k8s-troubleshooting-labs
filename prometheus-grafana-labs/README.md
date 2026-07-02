@@ -1,5 +1,37 @@
 # 📊 Prometheus & Grafana Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- Docker & Docker Compose installed
+
+- Ports 9090 (Prometheus), 3000 (Grafana), 9093 (Alertmanager) available
+
+
+
+### Steps:
+
+1. `cd lab-01-scrape-config-broken && ./deploy.sh`
+
+2. Open Prometheus: http://localhost:9090/targets (see DOWN targets)
+
+3. Open Grafana: http://localhost:3000 (admin/admin)
+
+4. Fix prometheus.yml / alertmanager.yml / datasource configs
+
+5. Restart: `docker-compose restart prometheus`
+
+6. Cleanup: `./cleanup.sh`
+
+
+
+---
+
+
 ## 10 Real-World Broken Scenarios for Monitoring Engineers
 
 ---

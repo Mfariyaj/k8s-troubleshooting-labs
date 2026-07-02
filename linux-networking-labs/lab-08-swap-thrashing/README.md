@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (simulates the broken system state)
+2. Investigate using standard Linux tools: `df`, `ps`, `ss`, `dmesg`, `journalctl`
+3. Identify the root cause from system output
+4. Apply the fix (the README hints at what's wrong)
+5. Verify the system is healthy
+6. Cleanup: `./cleanup.sh`. Check `solution.md` if stuck
+
+---
+
 # Lab 08: Swap Thrashing
 
 ## Difficulty: 🔴 Hard

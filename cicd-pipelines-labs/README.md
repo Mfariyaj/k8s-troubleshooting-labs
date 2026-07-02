@@ -1,5 +1,39 @@
 # 🔧 CI/CD Pipelines Troubleshooting Labs
 
+
+## 🚀 How To Use These Labs
+
+
+
+### Prerequisites:
+
+- Git installed
+
+- For validation: `actionlint` (GitHub Actions linter) - optional
+
+- Basic YAML knowledge
+
+
+
+### Steps:
+
+1. `cd lab-01-github-actions-syntax && ./deploy.sh`
+
+2. Review the broken workflow in `.github/workflows/`
+
+3. Identify syntax errors, logic bugs, or misconfigurations
+
+4. Fix the YAML file
+
+5. Validate locally or push to GitHub to see CI results
+
+6. Cleanup: `./cleanup.sh`
+
+
+
+---
+
+
 ## 10 Real-World Broken CI/CD Pipeline Scenarios
 
 ---

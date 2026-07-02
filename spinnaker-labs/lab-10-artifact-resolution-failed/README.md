@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Deploy: `./deploy.sh` (copies broken config to workspace)
+2. Upload pipeline: `spin pipeline save --file pipeline.json`
+3. Execute: `spin pipeline execute --name <pipeline> --application <app>`
+4. Check Spinnaker UI for execution errors
+5. Fix the pipeline JSON or service config
+6. Check `solution.md` if stuck
+
+---
+
 # Lab 10: Artifact Resolution Failed — Can't Find or Bind Artifacts
 
 ## Difficulty: 🟡 Intermediate
