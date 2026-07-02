@@ -1,3 +1,14 @@
+## 🎯 How to Use This Lab
+
+1. Start Jenkins: `./deploy.sh` (or use an already-running Jenkins instance)
+2. Open **http://localhost:8080** → **New Item** → **Pipeline**
+3. Paste the `Jenkinsfile` contents into "Pipeline script"
+4. Click **Save** → **Build Now**
+5. Click **Console Output** on the failed build to see the error
+6. Diagnose and fix! Check `solution.md` if stuck.
+
+---
+
 # Lab 04: Shared Library
 
 ## Difficulty: ⭐⭐ Medium

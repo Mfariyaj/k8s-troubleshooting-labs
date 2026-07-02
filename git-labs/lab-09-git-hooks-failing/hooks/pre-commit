@@ -1,0 +1,21 @@
+#!/bin/bsh
+# Pre-commit hook — BROKEN
+# Bug 1: Wrong shebang (should be /bin/bash not /bin/bsh)
+# Bug 2: This file is not executable (chmod +x was not run)
+
+echo "Running pre-commit lint check..."
+
+# Check for debug statements
+if grep -r "import pdb" --include="*.py" .; then
+    echo "ERROR: Found pdb import! Remove debug statements."
+    exit 1
+fi
+
+# Check for trailing whitespace
+if grep -rP '\s+$' --include="*.py" .; then
+    echo "ERROR: Trailing whitespace found!"
+    exit 1
+fi
+
+echo "Pre-commit checks passed!"
+exit 0

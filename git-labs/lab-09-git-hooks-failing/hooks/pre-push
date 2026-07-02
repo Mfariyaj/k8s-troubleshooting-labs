@@ -1,0 +1,25 @@
+#!/bin/bash
+# Pre-push hook — BROKEN
+# Bug: Missing '; then' after if condition (line 8)
+
+echo "Running pre-push validation..."
+
+# Check that tests pass
+if [ -f "tests.py" ]
+    echo "Running tests..."
+    python3 tests.py
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Tests failed! Cannot push."
+        exit 1
+    fi
+fi
+
+# Check branch name format
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [[ ! "$BRANCH" =~ ^(main|develop|feature/|hotfix/|release/) ]]; then
+    echo "ERROR: Branch name '$BRANCH' doesn't follow naming convention."
+    exit 1
+fi
+
+echo "Pre-push checks passed!"
+exit 0
