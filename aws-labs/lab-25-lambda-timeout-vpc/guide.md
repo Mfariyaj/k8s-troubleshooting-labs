@@ -70,3 +70,51 @@ Always check:
 ## 📖 Reference
 - AWS Docs: https://docs.aws.amazon.com/
 - Troubleshooting: https://repost.aws/knowledge-center
+
+---
+
+## 🎮 Console Practice Lab (Do This Yourself!)
+
+### Create Lambda that times out in VPC:
+
+#### Step 1: Create a Lambda function in VPC
+1. **Lambda → Create function**
+2. Name: `vpc-timeout-test`
+3. Runtime: Python 3.12
+4. **Advanced settings → Enable VPC**
+5. Select your VPC
+6. Select a **PRIVATE subnet** (one WITHOUT NAT Gateway)
+7. Select a Security Group
+8. Create function
+
+#### Step 2: Add code that needs internet
+```python
+import urllib.request
+
+def lambda_handler(event, context):
+    # This needs internet access!
+    response = urllib.request.urlopen('https://api.github.com', timeout=5)
+    return {'statusCode': 200, 'body': response.read().decode()}
+```
+1. Paste this in the **Code** tab
+2. Click **Deploy**
+
+#### Step 3: Test and observe timeout
+1. Click **Test** → Create test event (any name, empty JSON `{}`)
+2. Click **Test**
+3. ❌ Result: **Task timed out after 3.00 seconds**
+4. The Lambda can't reach the internet because the private subnet has no NAT!
+
+#### Step 4: Fix — Add NAT Gateway
+1. **VPC → NAT Gateways → Create**
+2. Select a PUBLIC subnet → Allocate Elastic IP → Create
+3. **VPC → Route Tables** → Find the PRIVATE subnet's route table
+4. Add route: `0.0.0.0/0` → Target: your new NAT Gateway
+
+#### Step 5: Verify
+1. Go back to Lambda → Test again
+2. ✅ Should now return GitHub API response!
+3. (If still timeout, wait 1 minute for route to propagate)
+
+#### Step 6: Cleanup
+1. Delete Lambda → Delete NAT Gateway → Release Elastic IP

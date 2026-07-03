@@ -125,3 +125,71 @@ aws ec2 describe-instances  # Should work now!
 - IAM Policy Evaluation: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html
 - IAM Actions Reference: https://docs.aws.amazon.com/service-authorization/latest/reference/
 - Policy Simulator: https://policysim.aws.amazon.com/
+
+---
+
+## 🎮 Console Practice Lab (Do This Yourself!)
+
+### Create the broken state yourself in AWS Console:
+
+#### Step 1: Create a restricted IAM user
+1. **AWS Console → IAM → Users → Create user**
+2. User name: `test-restricted-user`
+3. Select: **Attach policies directly**
+4. Search and attach: `AmazonS3ReadOnlyAccess` (only S3, no EC2!)
+5. Click **Create user**
+6. Click the user → **Security credentials** → **Create access key**
+7. Save the Access Key ID and Secret
+
+#### Step 2: Configure CLI with this user
+```bash
+aws configure --profile restricted
+# Enter the access key from step 1
+```
+
+#### Step 3: Try an action this user CAN'T do
+```bash
+aws ec2 describe-instances --profile restricted
+# ERROR: AccessDenied! (user only has S3 access, not EC2)
+
+aws s3 ls --profile restricted
+# SUCCESS! (user has S3 read access)
+```
+
+#### Step 4: Fix it — Add EC2 permission
+1. **IAM → Users → test-restricted-user → Permissions**
+2. Click **Add permissions → Attach policies directly**
+3. Search: `AmazonEC2ReadOnlyAccess` → Check it → Click **Add permissions**
+
+#### Step 5: Verify the fix
+```bash
+aws ec2 describe-instances --profile restricted
+# SUCCESS! Now it works.
+```
+
+#### Step 6: Cleanup
+1. **IAM → Users → test-restricted-user → Delete**
+
+---
+
+## 🎮 Advanced Console Practice: Permission Boundary
+
+#### Create permission boundary that BLOCKS even if policy allows:
+1. **IAM → Policies → Create policy**
+2. JSON:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Action": ["s3:*", "logs:*"],
+       "Resource": "*"
+     }]
+   }
+   ```
+3. Name: `OnlyS3AndLogs-Boundary` → Create
+
+4. **IAM → Users → test-user → Permissions → Set permission boundary**
+5. Select: `OnlyS3AndLogs-Boundary`
+6. Now even if user has `AdministratorAccess`, they can ONLY do S3 + Logs!
+7. Test: `aws ec2 describe-instances` → **AccessDenied** (boundary blocks it)
