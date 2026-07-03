@@ -1,6 +1,6 @@
 # 🔧 DevOps Troubleshooting Labs
 
-## 215+ Real-World Broken Scenarios for DevOps Engineers
+## 370+ Real-World Broken Scenarios for DevOps Engineers
 
 ---
 
