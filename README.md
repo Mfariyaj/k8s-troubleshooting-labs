@@ -187,4 +187,19 @@ MIT License — break things freely, fix them wisely.
 
 ---
 
+## 📜 License & Copyright
+
+**© 2026 Mohammad Fariyaj Shaikh. All Rights Reserved.**
+
+This repository is licensed under a **Modified MIT License with Attribution Requirement**.
+
+✅ You CAN: Fork, clone, use for personal learning, share with attribution
+❌ You CANNOT: Remove copyright notices, claim authorship, use commercially without permission
+
+Any forks or copies must retain the original copyright notice and link back to this repository.
+
+See [LICENSE](LICENSE) for full legal terms.
+
+---
+
 Good luck, and happy troubleshooting! 🚀
