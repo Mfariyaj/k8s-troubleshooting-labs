@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
-    path: /manifests-typo
+    path: guestbook
   destination:
     server: https://kubernetes.default.svc
     namespace: sync-failed-lab
