@@ -1,10 +1,17 @@
-## Solution: lab-01-trivy-scan-failures
+## Solution: Trivy Container Image Scan Failing
 
 ### Root Cause
-Trivy container scan failing: wrong image ref, DB not updated
+Trivy container vulnerability scanner can't scan the image. Database not downloaded, wrong image reference, or scan timeout.
 
 ### Fix
-See the corrected configuration in the fix section below.
+Download the DB first with 'trivy --download-db-only', or set TRIVY_DB_REPOSITORY for air-gapped environments. Check the image name is correct.
 
 ### Verification
-Verify the fix resolves the error.
+Run the commands below to verify the fix works:
+```bash
+trivy image --download-db-only
+trivy image nginx:latest
+trivy image --severity HIGH,CRITICAL nginx:latest
+trivy image --ignore-unfixed nginx:latest
+trivy fs --security-checks vuln,config .
+```

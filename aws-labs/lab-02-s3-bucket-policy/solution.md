@@ -1,10 +1,16 @@
-## Solution: lab-02-s3-bucket-policy
+## Solution: S3 Bucket Policy Conflict
 
 ### Root Cause
-S3 access denied: bucket policy conflicts with IAM, public access block enabled
+S3 bucket returns 403 Forbidden. The bucket policy and IAM policy conflict, or S3 Block Public Access is overriding permissions.
 
 ### Fix
-See the corrected configuration in the fix section below.
+Ensure bucket policy allows the IAM principal. Check that Block Public Access isn't overriding. Use Policy Simulator.
 
 ### Verification
-Verify the fix resolves the error.
+Run the commands below to verify the fix works:
+```bash
+aws s3api get-bucket-policy --bucket my-bucket
+aws s3api get-public-access-block --bucket my-bucket
+aws s3api get-bucket-acl --bucket my-bucket
+aws iam simulate-principal-policy --policy-source-arn <arn> --action-names s3:GetObject --resource-arns arn:aws:s3:::my-bucket/*
+```

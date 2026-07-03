@@ -4,7 +4,11 @@
 Resource attributes not attached: service.name empty
 
 ### Fix
-See the corrected configuration in the fix section below.
+1. Identify the misconfiguration from the error message
+2. Fix the broken config file (check for typos, wrong values, missing fields)
+3. Restart/re-apply the configuration
+4. Verify the error is resolved
 
-### Verification
-Verify the fix resolves the error.
+### Key Takeaway
+Always read error messages carefully — they usually point directly to the problem.
+Check configuration syntax, paths, and connectivity before diving deeper.

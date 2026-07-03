@@ -1,10 +1,16 @@
-## Solution: lab-01-missing-base
+## Solution: Missing Base Directory
 
 ### Root Cause
-kustomization.yaml references non-existent base directory
+Kustomize build fails because the base directory referenced in kustomization.yaml doesn't exist. Path typo or directory moved.
 
 ### Fix
-See the corrected configuration in the fix section below.
+Fix the path in kustomization.yaml to point to the correct base directory. Use relative paths.
 
 ### Verification
-Verify the fix resolves the error.
+Run the commands below to verify the fix works:
+```bash
+kustomize build .
+cat kustomization.yaml
+ls -la ../   # Check if base exists
+kustomize build . --enable-alpha-plugins 2>&1 | head -20
+```

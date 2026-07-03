@@ -1,10 +1,16 @@
-## Solution: lab-02-patch-target-mismatch
+## Solution: Patch Target Mismatch
 
 ### Root Cause
-Strategic merge patch target doesn't match any resource
+A strategic merge patch doesn't apply because the target resource name or kind doesn't match any resource in the base.
 
 ### Fix
-See the corrected configuration in the fix section below.
+Fix the name/kind in the patch file to match the actual resource in base/deployment.yaml
 
 ### Verification
-Verify the fix resolves the error.
+Run the commands below to verify the fix works:
+```bash
+kustomize build .
+cat patches/my-patch.yaml   # Check target name
+cat base/deployment.yaml    # Check actual name
+diff <(grep 'name:' patches/my-patch.yaml) <(grep 'name:' base/deployment.yaml)
+```
