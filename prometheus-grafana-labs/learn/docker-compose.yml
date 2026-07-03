@@ -1,0 +1,45 @@
+
+services:
+  # Prometheus - metrics collection & alerting
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-learn
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # Grafana - visualization dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-learn
+    ports:
+      - "3030:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+
+  # Node Exporter - Linux system metrics (CPU, RAM, Disk, Network)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter-learn
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+  # A sample Python app that exposes custom metrics
+  sample-app:
+    image: python:3.11-slim
+    container_name: sample-app-learn
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./sample-app.py:/app/app.py
+    working_dir: /app
+    command: bash -c "pip install prometheus-client flask -q && python app.py"
+    restart: unless-stopped
