@@ -1,13 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: frontend-svc
-  namespace: health-degraded-ns
+  name: nginx-app-svc
 spec:
   selector:
-    app: frontend-app
+    app: nginx-app
   ports:
-    - protocol: TCP
-      port: 80
+    - port: 80
       targetPort: 80
-  type: ClusterIP
