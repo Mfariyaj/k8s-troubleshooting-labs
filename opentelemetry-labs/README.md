@@ -1,37 +1,110 @@
-# 🔧 Opentelemetry Troubleshooting Labs
+# 🔭 OpenTelemetry Troubleshooting Labs
 
-## 10 Real-World Broken Scenarios
+## 10 Real-World Broken Observability Scenarios
 
 ---
 
-## 🚀 How To Use These Labs
+## 📚 What is OpenTelemetry?
 
-1. `cd lab-01-* && ./deploy.sh`
-2. Observe the error output
-3. Diagnose and fix the issue
-4. Verify your fix works
-5. `./cleanup.sh` when done
+OpenTelemetry (OTel) is the **industry standard for observability**. It provides ONE unified way to collect:
+- **Traces** — Follow requests across microservices
+- **Metrics** — Numbers over time (CPU, request count, latency)
+- **Logs** — Structured event messages
+
+### Why It's Replacing Everything:
+- Before OTel: Datadog SDK + Prometheus client + Jaeger client = 3 SDKs
+- After OTel: ONE SDK → export to ANY backend
+
+---
+
+## 🏗️ Architecture
+
+```
+┌────────────┐    ┌────────────┐    ┌────────────┐
+│  Service A │    │  Service B │    │  Service C │
+│  (OTel SDK)│    │  (OTel SDK)│    │  (OTel SDK)│
+└─────┬──────┘    └─────┬──────┘    └─────┬──────┘
+      │                  │                  │
+      │    OTLP (gRPC :4317 / HTTP :4318)   │
+      ▼                  ▼                  ▼
+┌─────────────────────────────────────────────────┐
+│              OTel Collector                       │
+│                                                  │
+│  Receivers → Processors → Exporters             │
+│  (OTLP)     (batch,       (Prometheus,          │
+│              filter,        Jaeger,              │
+│              sampling)      Tempo,              │
+│                             Datadog)            │
+└─────────────────────────────────────────────────┘
+      │              │              │
+      ▼              ▼              ▼
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│Prometheus│  │  Jaeger  │  │  Grafana │
+│(metrics) │  │ (traces) │  │  (viz)   │
+└──────────┘  └──────────┘  └──────────┘
+```
+
+---
+
+## 🔑 Key Concepts
+
+### The 3 Signals:
+| Signal | What | Example | Tool |
+|--------|------|---------|------|
+| **Trace** | Request journey across services | User→API→DB→Cache | Jaeger, Tempo |
+| **Metric** | Number measurement over time | CPU=85%, 100 req/s | Prometheus |
+| **Log** | Event message with context | "Error: DB timeout" | Loki, ELK |
+
+### Collector Pipeline:
+```yaml
+receivers:     # HOW data comes in
+  otlp:        # Standard OTel protocol
+    protocols:
+      grpc: { endpoint: 0.0.0.0:4317 }
+      http: { endpoint: 0.0.0.0:4318 }
+
+processors:    # WHAT to do with data
+  batch:       # Batch for efficiency
+    timeout: 5s
+  filter:      # Drop unwanted data
+  tail_sampling:  # Smart sampling
+
+exporters:     # WHERE to send data
+  prometheus: { endpoint: 0.0.0.0:8889 }
+  otlp: { endpoint: tempo:4317 }
+
+service:       # Wire it together
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+```
 
 ---
 
 ## 📋 Labs
 
-| # | Lab | Difficulty |
-|---|-----|-----------|
-| 01 | [lab-01-collector-not-receiving](lab-01-collector-not-receiving/) | ⭐⭐ Medium |
-| 02 | [lab-02-exporter-connection-failed](lab-02-exporter-connection-failed/) | ⭐⭐ Medium |
-| 03 | [lab-03-sampling-dropping-all](lab-03-sampling-dropping-all/) | ⭐⭐ Medium |
-| 04 | [lab-04-context-propagation-broken](lab-04-context-propagation-broken/) | ⭐⭐ Medium |
-| 05 | [lab-05-metrics-pipeline-broken](lab-05-metrics-pipeline-broken/) | ⭐⭐ Medium |
-| 06 | [lab-06-resource-attributes-missing](lab-06-resource-attributes-missing/) | ⭐⭐ Medium |
-| 07 | [lab-07-batch-processor-timeout](lab-07-batch-processor-timeout/) | ⭐⭐ Medium |
-| 08 | [lab-08-tls-certificate-error](lab-08-tls-certificate-error/) | ⭐⭐ Medium |
-| 09 | [lab-09-log-pipeline-parsing](lab-09-log-pipeline-parsing/) | ⭐⭐ Medium |
-| 10 | [lab-10-k8s-operator-crashing](lab-10-k8s-operator-crashing/) | ⭐⭐ Medium |
+| # | Lab | Difficulty | What You'll Learn |
+|---|-----|-----------|-------------------|
+| 01 | Collector Not Receiving | ⭐ Easy | Receiver config, ports, protocols |
+| 02 | Exporter Connection Failed | ⭐⭐ Medium | Backend connectivity, auth |
+| 03 | Sampling Dropping All | ⭐⭐ Medium | Sampling policies, tail vs head |
+| 04 | Context Propagation Broken | ⭐⭐⭐ Hard | W3C TraceContext, headers |
+| 05 | Metrics Pipeline Broken | ⭐⭐ Medium | Processor queues, backpressure |
+| 06 | Resource Attributes Missing | ⭐ Easy | service.name, deployment.env |
+| 07 | Batch Processor Timeout | ⭐⭐ Medium | Timeout vs size, data loss |
+| 08 | TLS Certificate Error | ⭐⭐⭐ Hard | mTLS between components |
+| 09 | Log Pipeline Parsing | ⭐⭐ Medium | Regex operators, structured logs |
+| 10 | K8s Operator Crashing | ⭐⭐⭐ Hard | OTelCollector CRD, pod config |
 
 ---
 
-## Prerequisites
-- Docker installed
-- kubectl configured (for K8s-related labs)
-- Relevant CLI tools installed
+## 📖 Reference
+- Docs: https://opentelemetry.io/docs/
+- Collector: https://opentelemetry.io/docs/collector/
+- SDK: https://opentelemetry.io/docs/instrumentation/

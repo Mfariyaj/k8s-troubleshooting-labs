@@ -1,37 +1,74 @@
-# 🔧 Devsecops Troubleshooting Labs
+# 🛡️ DevSecOps Troubleshooting Labs
 
-## 10 Real-World Broken Scenarios
+## 10 Real-World Security Broken Scenarios
 
 ---
 
-## 🚀 How To Use These Labs
+## 📚 What is DevSecOps?
 
-1. `cd lab-01-* && ./deploy.sh`
-2. Observe the error output
-3. Diagnose and fix the issue
-4. Verify your fix works
-5. `./cleanup.sh` when done
+DevSecOps = **Security integrated into every stage of DevOps**, not bolted on at the end.
+
+### The Shift-Left Approach:
+```
+Traditional: Code → Build → Test → Deploy → [Security Check] → Production
+                                                    ↑ Too late! Bug already deployed
+
+DevSecOps:   Code → [SAST] → Build → [Image Scan] → [Policy] → Deploy → [Runtime]
+                ↑ Early!        ↑ Before push!       ↑ Admission!    ↑ Always watching!
+```
+
+---
+
+## 🏗️ DevSecOps Pipeline
+
+```
+┌──────────┐  ┌───────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐
+│  Code    │  │   Build   │  │  Deploy  │  │ Admission │  │ Runtime  │
+│          │  │           │  │          │  │           │  │          │
+│ SonarQube│  │   Trivy   │  │  Cosign  │  │    OPA    │  │  Falco   │
+│ Semgrep  │  │   Snyk    │  │ Notary   │  │ Kyverno   │  │ Sysdig   │
+│ gitleaks │  │ Grype     │  │          │  │           │  │ Tetragon │
+└──────────┘  └───────────┘  └──────────┘  └───────────┘  └──────────┘
+    SAST         SCA/Image      Supply        Policy         Threat
+  (static)      Scanning       Chain         Enforce        Detection
+```
+
+---
+
+## 🔑 Key Tools
+
+| Tool | Stage | What It Does |
+|------|-------|-------------|
+| **SonarQube** | Code | Static analysis (bugs, vulnerabilities, code smells) |
+| **Trivy** | Build | Scan container images + IaC for CVEs |
+| **Snyk** | Code+Build | Dependency vulnerabilities + fixes |
+| **Cosign** | Push | Sign container images (verify supply chain) |
+| **OPA/Gatekeeper** | Admission | Block non-compliant K8s resources |
+| **Kyverno** | Admission | K8s-native policy engine |
+| **Falco** | Runtime | Detect suspicious syscalls in containers |
+| **gitleaks** | Pre-commit | Detect secrets in git commits |
 
 ---
 
 ## 📋 Labs
 
-| # | Lab | Difficulty |
-|---|-----|-----------|
-| 01 | [lab-01-trivy-scan-failures](lab-01-trivy-scan-failures/) | ⭐⭐ Medium |
-| 02 | [lab-02-sonarqube-quality-gate](lab-02-sonarqube-quality-gate/) | ⭐⭐ Medium |
-| 03 | [lab-03-secret-scanning-bypass](lab-03-secret-scanning-bypass/) | ⭐⭐ Medium |
-| 04 | [lab-04-container-image-vuln](lab-04-container-image-vuln/) | ⭐⭐ Medium |
-| 05 | [lab-05-opa-policy-violation](lab-05-opa-policy-violation/) | ⭐⭐ Medium |
-| 06 | [lab-06-rbac-overpermissioned](lab-06-rbac-overpermissioned/) | ⭐⭐ Medium |
-| 07 | [lab-07-network-policy-missing](lab-07-network-policy-missing/) | ⭐⭐ Medium |
-| 08 | [lab-08-supply-chain-attack](lab-08-supply-chain-attack/) | ⭐⭐ Medium |
-| 09 | [lab-09-runtime-security-alert](lab-09-runtime-security-alert/) | ⭐⭐ Medium |
-| 10 | [lab-10-compliance-drift](lab-10-compliance-drift/) | ⭐⭐ Medium |
+| # | Lab | Difficulty | What You'll Learn |
+|---|-----|-----------|-------------------|
+| 01 | Trivy Scan Failures | ⭐ Easy | Container image scanning, CVE databases |
+| 02 | SonarQube Quality Gate | ⭐⭐ Medium | Quality gates, coverage thresholds |
+| 03 | Secret Scanning Bypass | ⭐⭐ Medium | Pre-commit hooks, gitleaks |
+| 04 | Container Image Vuln | ⭐⭐ Medium | Base image selection, patching |
+| 05 | OPA Policy Violation | ⭐⭐⭐ Hard | Rego language, constraints |
+| 06 | RBAC Overpermissioned | ⭐⭐ Medium | Least privilege, audit |
+| 07 | Network Policy Missing | ⭐⭐ Medium | Zero trust, microsegmentation |
+| 08 | Supply Chain Attack | ⭐⭐⭐ Hard | Image signing, provenance |
+| 09 | Runtime Security Alert | ⭐⭐⭐ Hard | Falco rules, syscall monitoring |
+| 10 | Compliance Drift | ⭐⭐⭐ Hard | CIS benchmarks, kube-bench |
 
 ---
 
-## Prerequisites
-- Docker installed
-- kubectl configured (for K8s-related labs)
-- Relevant CLI tools installed
+## 📖 Reference
+- Trivy: https://aquasecurity.github.io/trivy/
+- OPA: https://www.openpolicyagent.org/docs/
+- Falco: https://falco.org/docs/
+- CIS Benchmarks: https://www.cisecurity.org/benchmark/kubernetes

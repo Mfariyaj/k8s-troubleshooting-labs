@@ -1,37 +1,64 @@
-# 🔧 Chaos Engineering Troubleshooting Labs
+# 💥 Chaos Engineering Troubleshooting Labs
 
-## 10 Real-World Broken Scenarios
+## 10 Real-World Chaos Experiments
 
 ---
 
-## 🚀 How To Use These Labs
+## 📚 What is Chaos Engineering?
 
-1. `cd lab-01-* && ./deploy.sh`
-2. Observe the error output
-3. Diagnose and fix the issue
-4. Verify your fix works
-5. `./cleanup.sh` when done
+Chaos Engineering = **Intentionally breaking things to find weaknesses BEFORE they cause outages.**
+
+Netflix invented it (Chaos Monkey, 2011). Now every large company does it.
+
+### The Process:
+1. **Define steady state** (what "normal" looks like)
+2. **Hypothesize** ("if we kill a pod, the service should recover in <30s")
+3. **Inject failure** (kill pod, add latency, fill disk)
+4. **Observe** (did alerts fire? did it recover? how long?)
+5. **Fix** the weaknesses you found
+
+---
+
+## 🏗️ Chaos Tools
+
+```
+┌─────────────────────────────────────────────────┐
+│             Chaos Experiments                     │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
+│  │   Pod    │  │ Network  │  │   Resource   │  │
+│  │  Chaos   │  │  Chaos   │  │   Chaos      │  │
+│  │          │  │          │  │              │  │
+│  │ Kill pod │  │ Partition│  │ CPU stress   │  │
+│  │ Restart  │  │ Latency  │  │ Memory hog   │  │
+│  │ Drain    │  │ DNS fail │  │ Disk fill    │  │
+│  └──────────┘  └──────────┘  └──────────────┘  │
+│                                                  │
+│  Tools: Litmus Chaos | Chaos Mesh | Gremlin     │
+└─────────────────────────────────────────────────┘
+```
 
 ---
 
 ## 📋 Labs
 
-| # | Lab | Difficulty |
-|---|-----|-----------|
-| 01 | [lab-01-pod-kill-recovery](lab-01-pod-kill-recovery/) | ⭐⭐ Medium |
-| 02 | [lab-02-network-partition](lab-02-network-partition/) | ⭐⭐ Medium |
-| 03 | [lab-03-cpu-stress-test](lab-03-cpu-stress-test/) | ⭐⭐ Medium |
-| 04 | [lab-04-memory-pressure](lab-04-memory-pressure/) | ⭐⭐ Medium |
-| 05 | [lab-05-disk-fill-attack](lab-05-disk-fill-attack/) | ⭐⭐ Medium |
-| 06 | [lab-06-dns-failure-injection](lab-06-dns-failure-injection/) | ⭐⭐ Medium |
-| 07 | [lab-07-latency-injection](lab-07-latency-injection/) | ⭐⭐ Medium |
-| 08 | [lab-08-node-drain-chaos](lab-08-node-drain-chaos/) | ⭐⭐ Medium |
-| 09 | [lab-09-dependency-unavailable](lab-09-dependency-unavailable/) | ⭐⭐ Medium |
-| 10 | [lab-10-zone-failure](lab-10-zone-failure/) | ⭐⭐ Medium |
+| # | Lab | Difficulty | Experiment | What You Validate |
+|---|-----|-----------|-----------|-------------------|
+| 01 | Pod Kill Recovery | ⭐ Easy | Delete random pods | Auto-healing, PDB |
+| 02 | Network Partition | ⭐⭐ Medium | Block traffic between services | Circuit breaker, retry |
+| 03 | CPU Stress | ⭐⭐ Medium | Consume all CPU | HPA scaling, alerts |
+| 04 | Memory Pressure | ⭐⭐ Medium | OOM scenarios | Limits, OOM killer |
+| 05 | Disk Fill | ⭐⭐ Medium | Fill persistent volume | Alerting, cleanup |
+| 06 | DNS Failure | ⭐⭐⭐ Hard | Break DNS resolution | Caching, retries |
+| 07 | Latency Injection | ⭐⭐⭐ Hard | Add 5s delay | Timeouts, SLOs |
+| 08 | Node Drain | ⭐⭐ Medium | Drain a K8s node | PDB, rescheduling |
+| 09 | Dependency Unavailable | ⭐⭐⭐ Hard | Kill downstream service | Fallbacks, graceful degradation |
+| 10 | Zone Failure | ⭐⭐⭐⭐ Expert | Simulate AZ outage | Multi-AZ resilience |
 
 ---
 
-## Prerequisites
-- Docker installed
-- kubectl configured (for K8s-related labs)
-- Relevant CLI tools installed
+## 📖 Reference
+- Principles: https://principlesofchaos.org/
+- Litmus: https://litmuschaos.io/
+- Chaos Mesh: https://chaos-mesh.org/

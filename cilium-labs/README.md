@@ -1,37 +1,65 @@
-# 🔧 Cilium Troubleshooting Labs
+# 🐝 Cilium Troubleshooting Labs
 
-## 10 Real-World Broken Scenarios
+## 10 Real-World eBPF Networking Scenarios
 
 ---
 
-## 🚀 How To Use These Labs
+## 📚 What is Cilium?
 
-1. `cd lab-01-* && ./deploy.sh`
-2. Observe the error output
-3. Diagnose and fix the issue
-4. Verify your fix works
-5. `./cleanup.sh` when done
+Cilium is a **Kubernetes CNI plugin** powered by **eBPF** (extended Berkeley Packet Filter). It replaces iptables with programmable kernel-level networking.
+
+### Why Cilium is the Future:
+- **10x faster** than iptables for large clusters
+- **L7 policies** — filter HTTP methods, gRPC services, Kafka topics
+- **Service mesh** without sidecars (runs in kernel)
+- **Hubble** — real-time network flow observability
+
+### Architecture:
+```
+┌──────────────────────────────────────────┐
+│           Kubernetes Node                 │
+│                                          │
+│  ┌──────┐  ┌──────┐  ┌──────┐          │
+│  │ Pod A│  │ Pod B│  │ Pod C│          │
+│  └──┬───┘  └──┬───┘  └──┬───┘          │
+│     │         │         │               │
+│  ┌──▼─────────▼─────────▼──┐           │
+│  │     Cilium Agent (eBPF)  │           │
+│  │  ┌─────────────────────┐ │           │
+│  │  │  eBPF Programs       │ │           │
+│  │  │  (in Linux kernel)   │ │           │
+│  │  │  - Network policy    │ │           │
+│  │  │  - Load balancing    │ │           │
+│  │  │  - Encryption        │ │           │
+│  │  │  - Observability     │ │           │
+│  │  └─────────────────────┘ │           │
+│  └──────────────────────────┘           │
+│                                          │
+│  ┌──────────────────────────┐           │
+│  │  Hubble (flow logs)      │           │
+│  └──────────────────────────┘           │
+└──────────────────────────────────────────┘
+```
 
 ---
 
 ## 📋 Labs
 
-| # | Lab | Difficulty |
-|---|-----|-----------|
-| 01 | [lab-01-cilium-agent-not-ready](lab-01-cilium-agent-not-ready/) | ⭐⭐ Medium |
-| 02 | [lab-02-network-policy-not-enforcing](lab-02-network-policy-not-enforcing/) | ⭐⭐ Medium |
-| 03 | [lab-03-service-mesh-broken](lab-03-service-mesh-broken/) | ⭐⭐ Medium |
-| 04 | [lab-04-hubble-not-observing](lab-04-hubble-not-observing/) | ⭐⭐ Medium |
-| 05 | [lab-05-egress-gateway-failing](lab-05-egress-gateway-failing/) | ⭐⭐ Medium |
-| 06 | [lab-06-cluster-mesh-disconnected](lab-06-cluster-mesh-disconnected/) | ⭐⭐ Medium |
-| 07 | [lab-07-bandwidth-limit-not-applied](lab-07-bandwidth-limit-not-applied/) | ⭐⭐ Medium |
-| 08 | [lab-08-host-firewall-blocking](lab-08-host-firewall-blocking/) | ⭐⭐ Medium |
-| 09 | [lab-09-identity-allocation-failed](lab-09-identity-allocation-failed/) | ⭐⭐ Medium |
-| 10 | [lab-10-bgp-peering-down](lab-10-bgp-peering-down/) | ⭐⭐ Medium |
+| # | Lab | Difficulty | What Breaks |
+|---|-----|-----------|-------------|
+| 01 | Agent Not Ready | ⭐ Easy | CNI config wrong |
+| 02 | Policy Not Enforcing | ⭐⭐ Medium | CiliumNetworkPolicy syntax |
+| 03 | Service Mesh Broken | ⭐⭐⭐ Hard | mTLS configuration |
+| 04 | Hubble Not Observing | ⭐⭐ Medium | Relay not connected |
+| 05 | Egress Gateway | ⭐⭐⭐ Hard | NAT policy wrong |
+| 06 | Cluster Mesh | ⭐⭐⭐⭐ Expert | Multi-cluster discovery |
+| 07 | Bandwidth Limit | ⭐⭐ Medium | Annotation not applied |
+| 08 | Host Firewall | ⭐⭐⭐ Hard | Host-level rules blocking |
+| 09 | Identity Allocation | ⭐⭐⭐ Hard | Kvstore unreachable |
+| 10 | BGP Peering | ⭐⭐⭐⭐ Expert | External router config |
 
 ---
 
-## Prerequisites
-- Docker installed
-- kubectl configured (for K8s-related labs)
-- Relevant CLI tools installed
+## 📖 Reference
+- Docs: https://docs.cilium.io/
+- Hubble: https://docs.cilium.io/en/stable/observability/hubble/

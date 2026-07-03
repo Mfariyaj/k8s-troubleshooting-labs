@@ -1,37 +1,93 @@
-# 🔧 Kustomize Troubleshooting Labs
+# 📦 Kustomize Troubleshooting Labs
 
-## 10 Real-World Broken Scenarios
+## 10 Real-World Broken Kustomize Scenarios
 
 ---
 
-## 🚀 How To Use These Labs
+## 📚 What is Kustomize?
 
-1. `cd lab-01-* && ./deploy.sh`
-2. Observe the error output
-3. Diagnose and fix the issue
-4. Verify your fix works
-5. `./cleanup.sh` when done
+Kustomize lets you **customize Kubernetes YAML without templates**. Unlike Helm (which uses `{{ }}` templating), Kustomize uses **patching** — you keep the original YAML and apply changes on top.
+
+### Kustomize vs Helm:
+| | Kustomize | Helm |
+|---|-----------|------|
+| Approach | Patch original YAML | Template with `{{ }}` |
+| Learning curve | Lower (just YAML) | Higher (Go templates) |
+| Built into kubectl | ✅ `kubectl apply -k` | ❌ Separate CLI |
+| Package manager | ❌ No | ✅ Charts + repos |
+| Best for | Per-env overlays | Reusable packages |
+
+### Core Pattern:
+```
+base/                         ← Shared, original YAML
+├── deployment.yaml
+├── service.yaml
+└── kustomization.yaml        ← Lists resources
+
+overlays/
+├── dev/
+│   ├── kustomization.yaml    ← References base + patches
+│   └── replicas-patch.yaml   ← Change replicas to 1
+├── staging/
+│   └── kustomization.yaml
+└── prod/
+    ├── kustomization.yaml
+    └── resources-patch.yaml  ← Change CPU/memory limits
+```
+
+---
+
+## 🔑 Key Features
+
+```yaml
+# kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:        # What to include
+  - ../base
+
+namePrefix: prod-         # Add prefix to all names
+namespace: production     # Set namespace on all resources
+commonLabels:             # Add labels to everything
+  env: production
+
+patches:                  # Modify resources
+  - path: replicas-patch.yaml
+    target:
+      kind: Deployment
+      name: myapp
+
+configMapGenerator:       # Auto-create ConfigMaps
+  - name: app-config
+    files:
+      - config.json
+
+secretGenerator:          # Auto-create Secrets
+  - name: db-creds
+    envs:
+      - .env.secret
+```
 
 ---
 
 ## 📋 Labs
 
-| # | Lab | Difficulty |
-|---|-----|-----------|
-| 01 | [lab-01-missing-base](lab-01-missing-base/) | ⭐⭐ Medium |
-| 02 | [lab-02-patch-target-mismatch](lab-02-patch-target-mismatch/) | ⭐⭐ Medium |
-| 03 | [lab-03-name-prefix-breaking](lab-03-name-prefix-breaking/) | ⭐⭐ Medium |
-| 04 | [lab-04-overlay-conflict](lab-04-overlay-conflict/) | ⭐⭐ Medium |
-| 05 | [lab-05-generator-secret-wrong](lab-05-generator-secret-wrong/) | ⭐⭐ Medium |
-| 06 | [lab-06-component-not-found](lab-06-component-not-found/) | ⭐⭐ Medium |
-| 07 | [lab-07-json-patch-invalid](lab-07-json-patch-invalid/) | ⭐⭐ Medium |
-| 08 | [lab-08-namespace-transformer](lab-08-namespace-transformer/) | ⭐⭐ Medium |
-| 09 | [lab-09-replacement-broken](lab-09-replacement-broken/) | ⭐⭐ Medium |
-| 10 | [lab-10-remote-base-unreachable](lab-10-remote-base-unreachable/) | ⭐⭐ Medium |
+| # | Lab | Difficulty | What Breaks |
+|---|-----|-----------|-------------|
+| 01 | Missing Base | ⭐ Easy | Base directory path wrong |
+| 02 | Patch Target Mismatch | ⭐⭐ Medium | Patch can't find resource |
+| 03 | Name Prefix Breaking | ⭐⭐ Medium | References broken after prefix |
+| 04 | Overlay Conflict | ⭐⭐ Medium | Multiple patches on same field |
+| 05 | Generator Secret Wrong | ⭐⭐ Medium | File path doesn't exist |
+| 06 | Component Not Found | ⭐⭐ Medium | Component path wrong |
+| 07 | JSON Patch Invalid | ⭐⭐⭐ Hard | Wrong JSON patch operation |
+| 08 | Namespace Transformer | ⭐⭐⭐ Hard | CRDs skipped by transformer |
+| 09 | Replacement Broken | ⭐⭐⭐ Hard | Source/target field mismatch |
+| 10 | Remote Base Unreachable | ⭐⭐ Medium | Git URL or ref wrong |
 
 ---
 
-## Prerequisites
-- Docker installed
-- kubectl configured (for K8s-related labs)
-- Relevant CLI tools installed
+## 📖 Reference
+- Docs: https://kustomize.io/
+- kubectl: https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/

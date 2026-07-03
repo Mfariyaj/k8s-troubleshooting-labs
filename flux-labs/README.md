@@ -1,37 +1,60 @@
-# 🔧 Flux Troubleshooting Labs
+# 🔄 Flux CD Troubleshooting Labs
 
-## 10 Real-World Broken Scenarios
+## 10 Real-World Broken GitOps Scenarios
 
 ---
 
-## 🚀 How To Use These Labs
+## 📚 What is Flux?
 
-1. `cd lab-01-* && ./deploy.sh`
-2. Observe the error output
-3. Diagnose and fix the issue
-4. Verify your fix works
-5. `./cleanup.sh` when done
+Flux is a **GitOps operator for Kubernetes**. It continuously syncs your cluster state with a Git repository. If someone changes something in the cluster manually, Flux reverts it.
+
+### How Flux Works:
+```
+Git Repo (source of truth)
+    │
+    │ Flux watches for changes
+    ▼
+┌─────────────────────────┐
+│  Flux Controllers       │
+│  ├── source-controller  │ ← Pulls from Git/Helm/OCI
+│  ├── kustomize-ctrl     │ ← Applies Kustomize overlays
+│  ├── helm-ctrl          │ ← Deploys Helm charts
+│  └── notification-ctrl  │ ← Alerts on sync failures
+└─────────────────────────┘
+    │
+    │ Applies to cluster
+    ▼
+Kubernetes Cluster (actual state = desired state)
+```
+
+### Flux vs ArgoCD:
+| | Flux | ArgoCD |
+|---|------|--------|
+| UI | Minimal (Weave GitOps) | Rich built-in UI |
+| Pull vs Push | Pull-based only | Pull-based + manual sync |
+| Multi-tenancy | Native per-namespace | Via Projects |
+| Image automation | Built-in | Separate controller |
+| CRD-based | Yes (multiple CRDs) | Single Application CRD |
 
 ---
 
 ## 📋 Labs
 
-| # | Lab | Difficulty |
-|---|-----|-----------|
-| 01 | [lab-01-gitrepository-auth-failed](lab-01-gitrepository-auth-failed/) | ⭐⭐ Medium |
-| 02 | [lab-02-kustomization-path-wrong](lab-02-kustomization-path-wrong/) | ⭐⭐ Medium |
-| 03 | [lab-03-helmrelease-values-missing](lab-03-helmrelease-values-missing/) | ⭐⭐ Medium |
-| 04 | [lab-04-dependency-not-ready](lab-04-dependency-not-ready/) | ⭐⭐ Medium |
-| 05 | [lab-05-image-policy-not-updating](lab-05-image-policy-not-updating/) | ⭐⭐ Medium |
-| 06 | [lab-06-health-check-timeout](lab-06-health-check-timeout/) | ⭐⭐ Medium |
-| 07 | [lab-07-prune-deleting-resources](lab-07-prune-deleting-resources/) | ⭐⭐ Medium |
-| 08 | [lab-08-multi-tenancy-rbac](lab-08-multi-tenancy-rbac/) | ⭐⭐ Medium |
-| 09 | [lab-09-webhook-receiver-broken](lab-09-webhook-receiver-broken/) | ⭐⭐ Medium |
-| 10 | [lab-10-drift-detection-false](lab-10-drift-detection-false/) | ⭐⭐ Medium |
+| # | Lab | Difficulty | What Breaks |
+|---|-----|-----------|-------------|
+| 01 | Git Auth Failed | ⭐ Easy | SSH key or token wrong |
+| 02 | Kustomization Path Wrong | ⭐⭐ Medium | Path doesn't exist in repo |
+| 03 | HelmRelease Values Missing | ⭐⭐ Medium | ConfigMap for values not found |
+| 04 | Dependency Not Ready | ⭐⭐⭐ Hard | Source blocks downstream |
+| 05 | Image Policy Not Updating | ⭐⭐⭐ Hard | Image automation misconfigured |
+| 06 | Health Check Timeout | ⭐⭐ Medium | Custom health check failing |
+| 07 | Prune Deleting Resources | ⭐⭐⭐ Hard | Prune removes manual resources |
+| 08 | Multi-Tenancy RBAC | ⭐⭐⭐ Hard | SA can't apply to namespace |
+| 09 | Webhook Receiver Broken | ⭐⭐ Medium | Webhook not triggering sync |
+| 10 | Drift Detection False | ⭐⭐⭐ Hard | Showing changes that don't exist |
 
 ---
 
-## Prerequisites
-- Docker installed
-- kubectl configured (for K8s-related labs)
-- Relevant CLI tools installed
+## 📖 Reference
+- Docs: https://fluxcd.io/docs/
+- Get Started: https://fluxcd.io/docs/get-started/
