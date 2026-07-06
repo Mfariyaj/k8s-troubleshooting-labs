@@ -1,0 +1,74 @@
+# ============================================================
+# Ansible Practice Labs - Docker Compose
+# ============================================================
+# Spins up 3 SSH-enabled target containers for Ansible practice
+#
+# Containers:
+#   node1 (web server)  - 172.20.0.11 - port 2201
+#   node2 (app server)  - 172.20.0.12 - port 2202
+#   node3 (db server)   - 172.20.0.13 - port 2203
+#
+# Usage:
+#   docker-compose up -d      # Start all nodes
+#   docker-compose down        # Stop all nodes
+#   docker-compose ps          # Check status
+# ============================================================
+
+version: '3.8'
+
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    container_name: ansible-node1
+    hostname: node1
+    ports:
+      - "2201:22"
+    networks:
+      ansible-net:
+        ipv4_address: 172.20.0.11
+    restart: unless-stopped
+    labels:
+      - "ansible.role=webserver"
+      - "ansible.lab=practice"
+
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    container_name: ansible-node2
+    hostname: node2
+    ports:
+      - "2202:22"
+    networks:
+      ansible-net:
+        ipv4_address: 172.20.0.12
+    restart: unless-stopped
+    labels:
+      - "ansible.role=appserver"
+      - "ansible.lab=practice"
+
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    container_name: ansible-node3
+    hostname: node3
+    ports:
+      - "2203:22"
+    networks:
+      ansible-net:
+        ipv4_address: 172.20.0.13
+    restart: unless-stopped
+    labels:
+      - "ansible.role=dbserver"
+      - "ansible.lab=practice"
+
+networks:
+  ansible-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1

@@ -1,40 +1,33 @@
 #!/bin/bash
-# Lab 12: Custom Module Broken
-# Deploy the broken lab environment
+# =============================================================
+# Lab 12: Custom Ansible Module Broken
+# =============================================================
+# This lab has INTENTIONAL module problems:
+#   - JSON parsing errors in module output
+#   - Idempotency not working (always reports changed)
+#   - Check mode not supported
+#   - Argument types incorrect
+# =============================================================
 
-set -e
+source "$(dirname "$0")/../lab-helper.sh"
+check_environment
 
-LAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORK_DIR="/tmp/ansible-lab12"
+print_lab_header "Lab 12: Custom Ansible Module Broken" \
+    "Custom module 'custom_config' produces invalid output and breaks idempotency"
 
-echo "============================================"
-echo "  Lab 12: Custom Ansible Module Broken"
-echo "============================================"
-echo ""
-echo "Scenario: A custom Ansible module 'custom_config' manages"
-echo "application configuration files. It's returning invalid output,"
-echo "failing idempotency, and doesn't support check mode."
-echo ""
-echo "Setting up lab environment..."
-
-mkdir -p "$WORK_DIR/config"
-
-echo ""
 echo "Running playbook with custom module..."
 echo "---"
-
-cd "$LAB_DIR"
 ansible-playbook playbook.yml -v 2>&1 || true
+echo "---"
 
 echo ""
-echo "---"
-echo ""
-echo "⚠️  PROBLEM: The custom_config module is broken in multiple ways:"
+echo "⚠️  PROBLEMS in library/custom_config.py:"
 echo "  1. JSON parsing errors in module output"
-echo "  2. Idempotency is not working (always reports changed)"
-echo "  3. Check mode is not supported"
-echo "  4. Argument types are incorrect"
+echo "  2. Always reports 'changed' (not idempotent)"
+echo "  3. Check mode not supported"
+echo "  4. Argument types incorrect"
 echo ""
-echo "Your task: Fix the custom module in library/custom_config.py"
+echo "Your task: Fix the custom module"
 echo ""
-echo "============================================"
+
+print_lab_footer

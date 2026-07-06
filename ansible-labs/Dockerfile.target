@@ -1,0 +1,69 @@
+# ============================================================
+# Ansible Practice Lab - SSH Target Container
+# ============================================================
+# This creates an Ubuntu container with:
+# - SSH server (port 22)
+# - Python3 (required by Ansible)
+# - sudo-enabled user 'ansible'
+# - Key-based + password authentication
+# ============================================================
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    openssh-server \
+    python3 \
+    python3-apt \
+    sudo \
+    vim \
+    curl \
+    wget \
+    net-tools \
+    iputils-ping \
+    iproute2 \
+    systemctl \
+    cron \
+    nginx \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure SSH
+RUN mkdir /var/run/sshd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    echo "PermitEmptyPasswords no" >> /etc/ssh/sshd_config
+
+# Create ansible user with sudo privileges
+RUN useradd -m -s /bin/bash ansible && \
+    echo "ansible:ansible123" | chpasswd && \
+    echo "ansible ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/ansible && \
+    chmod 0440 /etc/sudoers.d/ansible
+
+# Create deployer user (used in some labs)
+RUN useradd -m -s /bin/bash deployer && \
+    echo "deployer:deployer123" | chpasswd && \
+    echo "deployer ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/deployer && \
+    chmod 0440 /etc/sudoers.d/deployer
+
+# Set root password
+RUN echo "root:root123" | chpasswd
+
+# Create .ssh directories for both users
+RUN mkdir -p /home/ansible/.ssh && \
+    chmod 700 /home/ansible/.ssh && \
+    chown ansible:ansible /home/ansible/.ssh && \
+    mkdir -p /home/deployer/.ssh && \
+    chmod 700 /home/deployer/.ssh && \
+    chown deployer:deployer /home/deployer/.ssh
+
+# Generate SSH host keys
+RUN ssh-keygen -A
+
+# Expose SSH port
+EXPOSE 22
+
+# Start SSH server
+CMD ["/usr/sbin/sshd", "-D"]

@@ -1,49 +1,33 @@
 #!/bin/bash
-# Lab 11: Callback Plugin Failure
-# Deploy the broken lab environment
+# =============================================================
+# Lab 11: Custom Callback Plugin Failure
+# =============================================================
+# This lab has INTENTIONAL callback plugin problems:
+#   - Plugin class name doesn't match filename
+#   - CALLBACK_VERSION not set
+#   - Plugin path not configured in ansible.cfg
+#   - Method signatures wrong
+# =============================================================
 
-set -e
+source "$(dirname "$0")/../lab-helper.sh"
+check_environment
 
-LAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORK_DIR="/tmp/ansible-lab11"
+print_lab_header "Lab 11: Custom Callback Plugin Failure" \
+    "Custom callback plugin should log events but fires nothing"
 
-echo "============================================"
-echo "  Lab 11: Custom Callback Plugin Failure"
-echo "============================================"
-echo ""
-echo "Scenario: A custom callback plugin should send all task"
-echo "execution events as JSON to an external logging system."
-echo "Tasks appear to run normally, but NO callback events fire."
-echo ""
-echo "Setting up lab environment..."
-
-# Create working directories
-mkdir -p "$WORK_DIR"/{config,logs}
-
-echo ""
 echo "Running playbook with custom callback plugin..."
 echo "---"
-
-cd "$LAB_DIR"
 ansible-playbook playbook.yml -v 2>&1 || true
-
-echo ""
 echo "---"
+
 echo ""
 echo "⚠️  PROBLEM: The playbook ran but the custom_logger callback"
 echo "    plugin did NOT fire any events to the logging system."
 echo ""
-echo "Expected behavior:"
-echo "  - v2_playbook_on_start event sent"
-echo "  - v2_runner_on_ok event sent for each task"
-echo "  - v2_playbook_on_stats event sent at completion"
+echo "Expected: v2_playbook_on_start, v2_runner_on_ok events sent"
+echo "Actual:   No callback events fired, no errors shown"
 echo ""
-echo "Actual behavior:"
-echo "  - No callback events were sent"
-echo "  - No error messages about the callback plugin"
-echo "  - Tasks appear to complete normally"
+echo "Your task: Fix ALL issues in the callback plugin."
 echo ""
-echo "Your task: Diagnose why the callback plugin fails silently"
-echo "and fix ALL issues preventing it from functioning."
-echo ""
-echo "============================================"
+
+print_lab_footer
